@@ -80,6 +80,10 @@ export default function Page() {
       case 'draw':
         sfx.draw();
         break;
+      case 'recycle':
+        sfx.deal();
+        toast(`${fx.count ?? 'discard'} cards shuffled back into the deck`);
+        break;
       case 'discard':
         sfx.discard();
         if (fx.power && fx.pid !== myPid) {

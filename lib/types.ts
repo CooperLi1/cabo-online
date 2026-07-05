@@ -12,7 +12,7 @@ export interface PlayerState {
   avatar: string;
   connected: boolean;
   isBot?: boolean;
-  botLevel?: 'easy' | 'medium' | 'expert' | null;
+  botLevel?: 'derp' | 'easy' | 'medium' | 'hard' | 'expert' | null;
   cards: string[]; // card ids only — values stay secret on the server
   peeksLeft: number;
   isTurn: boolean;
@@ -36,8 +36,10 @@ export interface Fx {
   fromPid?: string;
   toPid?: string;
   cardId?: string;
+  outId?: string;
   aId?: string;
   bId?: string;
+  inId?: string;
   from?: string;
   queen?: boolean;
   power?: string | null;
@@ -49,6 +51,7 @@ export interface Fx {
   tie?: boolean;
   pids?: string[];
   round?: number;
+  count?: number;
 }
 
 export interface GameState {

@@ -10,10 +10,44 @@ import { PlayingCard, type CardSize } from './PlayingCard';
 import { PixelSprite, EYE } from './PixelSprite';
 import { AudioControl } from './AudioControl';
 
+const FLIGHT_CARD_W = 60;
+const FLIGHT_CARD_H = 84;
+
+type FlightPoint = {
+  x: number;
+  y: number;
+  scale: number;
+};
+
+type SwapFlightCard = {
+  id: string;
+  card: CardInfo | null;
+  from: FlightPoint;
+  to: FlightPoint;
+  rotateTo: number;
+};
+
+type SwapFlight = {
+  key: number;
+  incoming: SwapFlightCard;
+};
+
 function hashRot(id: string, spread = 8) {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
   return ((h % (spread * 2 + 1)) + (spread * 2 + 1)) % (spread * 2 + 1) - spread;
+}
+
+function pointFromRect(rect: DOMRect): FlightPoint {
+  return {
+    x: rect.left + rect.width / 2 - FLIGHT_CARD_W / 2,
+    y: rect.top + rect.height / 2 - FLIGHT_CARD_H / 2,
+    scale: rect.width / FLIGHT_CARD_W,
+  };
+}
+
+function cardSelector(cardId: string) {
+  return `[data-cardid="${cardId.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`;
 }
 
 export function GameTable({
@@ -43,12 +77,38 @@ export function GameTable({
   const [showValues, setShowValues] = useState(false);
   const [snapRingKey, setSnapRingKey] = useState(0);
   const [burst, setBurst] = useState(0);
+  const [cardPop, setCardPop] = useState<{ id: string; key: number } | null>(null);
+  const [swapFlight, setSwapFlight] = useState<SwapFlight | null>(null);
   const lastEpoch = useRef(state.snapEpoch);
   const lastFxSeq = useRef(0);
   const snapCooldownUntil = useRef(0);
+  const cardPopSeq = useRef(0);
+  const cardPopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const swapFlightSeq = useRef(0);
+  const swapFlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handSlotMaps = useRef<Map<string, (string | null)[]>>(new Map());
+  const handSlotRound = useRef(state.round);
+  const lastSlotFxSeq = useRef(0);
+  const handSlotsHydrated = useRef(false);
+  const pendingSlotSwaps = useRef<Map<string, { pid: string; outId: string; inId: string }>>(new Map());
 
   // reset blind-swap selection whenever the power context changes
   useEffect(() => { setBlindSel([]); }, [state.stage, state.powerKind, state.turnPid]);
+
+  useEffect(() => () => {
+    if (cardPopTimer.current) clearTimeout(cardPopTimer.current);
+    if (swapFlightTimer.current) clearTimeout(swapFlightTimer.current);
+  }, []);
+
+  const popCard = useCallback((cardId: string) => {
+    const key = ++cardPopSeq.current;
+    setCardPop({ id: cardId, key });
+    sfx.pop();
+    if (cardPopTimer.current) clearTimeout(cardPopTimer.current);
+    cardPopTimer.current = setTimeout(() => {
+      setCardPop((cur) => (cur?.key === key ? null : cur));
+    }, 240);
+  }, []);
 
   // discard snap ring on new top card + timestamp for true reaction-speed snaps
   const epochSeenAt = useRef(performance.now());
@@ -106,29 +166,189 @@ export function GameTable({
     return null;
   }, [revealMap, known]);
 
+  const startSwapFlight = useCallback((outId: string) => {
+    if (!state.drawn) return;
+    const drawnDomId = state.drawn.from === 'stock' ? `draw-${state.drawn.id}` : state.drawn.id;
+    const incomingEl = document.querySelector<HTMLElement>(cardSelector(drawnDomId));
+    const outgoingEl = document.querySelector<HTMLElement>(cardSelector(outId));
+    if (!incomingEl || !outgoingEl) return;
+
+    const key = ++swapFlightSeq.current;
+    const incomingCard = state.drawn.card
+      ?? drawnKnown[state.drawn.id]
+      ?? faceOf(state.drawn.id)
+      ?? null;
+    setSwapFlight({
+      key,
+      incoming: {
+        id: state.drawn.id,
+        card: incomingCard,
+        from: pointFromRect(incomingEl.getBoundingClientRect()),
+        to: pointFromRect(outgoingEl.getBoundingClientRect()),
+        rotateTo: 0,
+      },
+    });
+    if (swapFlightTimer.current) clearTimeout(swapFlightTimer.current);
+    swapFlightTimer.current = setTimeout(() => {
+      setSwapFlight((cur) => (cur?.key === key ? null : cur));
+    }, 430);
+  }, [state.drawn, drawnKnown, faceOf]);
+
+  const handSlotsByPid = useMemo(() => {
+    if (handSlotRound.current !== state.round) {
+      handSlotMaps.current.clear();
+      handSlotRound.current = state.round;
+      lastSlotFxSeq.current = 0;
+      handSlotsHydrated.current = false;
+    }
+
+    const activePids = new Set(state.players.map((p) => p.pid));
+    for (const pid of handSlotMaps.current.keys()) {
+      if (!activePids.has(pid)) handSlotMaps.current.delete(pid);
+    }
+
+    for (const p of state.players) {
+      if (!handSlotMaps.current.has(p.pid)) handSlotMaps.current.set(p.pid, [...p.cards]);
+    }
+
+    if (!handSlotsHydrated.current) {
+      handSlotsHydrated.current = true;
+      lastSlotFxSeq.current = Math.max(lastSlotFxSeq.current, 0, ...(state.fxs ?? []).map((fx) => fx.seq));
+    }
+
+    const findSlot = (cardId?: string) => {
+      if (!cardId) return null;
+      for (const [pid, slots] of handSlotMaps.current) {
+        const index = slots.indexOf(cardId);
+        if (index >= 0) return { pid, slots, index };
+      }
+      return null;
+    };
+
+    for (const fx of [...(state.fxs ?? [])].sort((a, b) => a.seq - b.seq)) {
+      if (fx.seq <= lastSlotFxSeq.current) continue;
+      if (fx.type === 'swap' && fx.pid && fx.outId && fx.inId) {
+        const slots = handSlotMaps.current.get(fx.pid);
+        const index = slots?.indexOf(fx.outId) ?? -1;
+        if (slots && index >= 0) slots[index] = fx.inId;
+        pendingSlotSwaps.current.delete(fx.inId);
+      } else if (fx.type === 'blind-swap' && fx.aId && fx.bId) {
+        const a = findSlot(fx.aId);
+        const b = findSlot(fx.bId);
+        if (a && b) {
+          a.slots[a.index] = fx.bId;
+          b.slots[b.index] = fx.aId;
+        }
+      } else if (fx.type === 'snap-hit' && fx.top?.id) {
+        const found = findSlot(fx.top.id);
+        if (found) found.slots[found.index] = null;
+      } else if (fx.type === 'give' && fx.cardId && fx.fromPid && fx.toPid) {
+        const from = handSlotMaps.current.get(fx.fromPid);
+        const fromIndex = from?.indexOf(fx.cardId) ?? -1;
+        if (from && fromIndex >= 0) from[fromIndex] = null;
+        const to = handSlotMaps.current.get(fx.toPid);
+        if (to) {
+          const open = to.findIndex((slot) => slot === null);
+          if (open >= 0) to[open] = fx.cardId;
+          else to.push(fx.cardId);
+        }
+      }
+      lastSlotFxSeq.current = fx.seq;
+    }
+
+    for (const [inId, swap] of pendingSlotSwaps.current) {
+      const player = state.players.find((p) => p.pid === swap.pid);
+      if (!player) {
+        pendingSlotSwaps.current.delete(inId);
+        continue;
+      }
+      const current = new Set(player.cards);
+      if (!current.has(swap.inId)) continue;
+      const slots = handSlotMaps.current.get(swap.pid);
+      if (!slots) {
+        pendingSlotSwaps.current.delete(inId);
+        continue;
+      }
+      if (slots.includes(swap.inId)) {
+        pendingSlotSwaps.current.delete(inId);
+        continue;
+      }
+      const index = slots.indexOf(swap.outId);
+      if (index >= 0) slots[index] = swap.inId;
+      pendingSlotSwaps.current.delete(inId);
+    }
+
+    const slotsByPid: Record<string, (string | null)[]> = {};
+    for (const p of state.players) {
+      if (p.cards.length === 0) {
+        handSlotMaps.current.set(p.pid, []);
+        slotsByPid[p.pid] = [];
+        continue;
+      }
+
+      const current = new Set(p.cards);
+      const slots = (handSlotMaps.current.get(p.pid) ?? []).map((id) =>
+        id && current.has(id) ? id : null
+      );
+      const placed = new Set(slots.filter((id): id is string => !!id));
+
+      for (const id of p.cards) {
+        if (placed.has(id)) continue;
+        const open = slots.findIndex((slot) => slot === null);
+        if (open >= 0) slots[open] = id;
+        else slots.push(id);
+        placed.add(id);
+      }
+
+      handSlotMaps.current.set(p.pid, slots);
+      slotsByPid[p.pid] = slots;
+    }
+    return slotsByPid;
+  }, [state.players, state.round, state.fxs]);
+
   const snapPossible = state.phase === 'play' && !iAmGiving && !(myTurn && (state.stage === 'decide' || state.stage === 'power'));
 
   // ---------- interactions ----------
   const clickCard = useCallback((cardId: string, ownerPid: string) => {
     const mine = ownerPid === me.pid;
+    const caboProtected = !!state.caboPid && ownerPid === state.caboPid && ownerPid !== me.pid;
     if (state.phase === 'peek') {
-      if (mine && meP.peeksLeft > 0 && !known[cardId]) s.emit('peek', { cardId });
+      if (mine && meP.peeksLeft > 0 && !known[cardId]) {
+        popCard(cardId);
+        s.emit('peek', { cardId });
+      }
       return;
     }
     if (state.phase !== 'play') return;
     if (iAmGiving) {
-      if (mine) s.emit('give', { cardId });
+      if (mine) {
+        popCard(cardId);
+        s.emit('give', { cardId });
+      }
       return;
     }
     if (myTurn && state.stage === 'decide' && mine) {
+      popCard(cardId);
+      if (state.drawn) {
+        startSwapFlight(cardId);
+        pendingSlotSwaps.current.set(state.drawn.id, { pid: me.pid, outId: cardId, inId: state.drawn.id });
+      }
       s.emit('swapDrawn', { cardId });
       return;
     }
     if (myTurn && state.stage === 'power') {
       const kind = state.powerKind;
-      if (kind === 'peek-own' && mine) s.emit('usePower', { cardId });
-      else if (kind === 'peek-other' && !mine) s.emit('usePower', { cardId });
+      if (kind === 'peek-own' && mine) {
+        popCard(cardId);
+        s.emit('usePower', { cardId });
+      }
+      else if (kind === 'peek-other' && !mine && !caboProtected) {
+        popCard(cardId);
+        s.emit('usePower', { cardId });
+      }
       else if (kind === 'blind-swap') {
+        if (!mine && caboProtected) return;
+        popCard(cardId);
         setBlindSel((sel) => {
           if (sel.includes(cardId)) return sel.filter((x) => x !== cardId);
           const next = [...sel, cardId];
@@ -142,17 +362,24 @@ export function GameTable({
           return next.slice(-2);
         });
       } else if (kind === 'peek-swap') {
-        if (!state.qPeeked) s.emit('usePower', { cardId });
-        else if (mine) s.emit('usePower', { cardId });
+        if (!state.qPeeked && !mine && !caboProtected) {
+          popCard(cardId);
+          s.emit('usePower', { cardId });
+        }
+        else if (mine) {
+          popCard(cardId);
+          s.emit('usePower', { cardId });
+        }
       }
       return;
     }
     // anything else = SNAP attempt — send true reaction time since the
     // snappable card appeared on this screen
     if (!snapPossible || state.snapLocked || performance.now() < snapCooldownUntil.current) return;
+    popCard(cardId);
     snapCooldownUntil.current = performance.now() + 120;
     s.emit('snap', { cardId, reaction: Math.round(performance.now() - epochSeenAt.current) });
-  }, [state, me.pid, meP, myTurn, iAmGiving, known, snapPossible, s]);
+  }, [state, me.pid, meP, myTurn, iAmGiving, known, snapPossible, s, popCard, startSwapFlight]);
 
   const clickStock = useCallback(() => {
     if (myTurn && state.stage === 'draw' && !state.pendingGive) s.emit('drawStock');
@@ -177,7 +404,7 @@ export function GameTable({
       if (kind === 'peek-own') return mine;
       if (kind === 'peek-other') return !mine && !caboProtected;
       if (kind === 'blind-swap') return mine || !caboProtected;
-      if (kind === 'peek-swap') return !state.qPeeked ? !caboProtected : mine;
+      if (kind === 'peek-swap') return !state.qPeeked ? !mine && !caboProtected : mine;
     }
     return false;
   }, [state, me.pid, meP, myTurn, iAmGiving, known]);
@@ -227,7 +454,7 @@ export function GameTable({
     if (kk === 'peek-other') hint = <>✨ <b>spy</b>: tap someone else&apos;s card to look at it</>;
     if (kk === 'blind-swap') hint = <>✨ <b>blind swap</b>: tap one of yours + one of theirs</>;
     if (kk === 'peek-swap') hint = !state.qPeeked
-      ? <>👸 <b>queen</b>: tap any card to peek at it</>
+      ? <>👸 <b>queen</b>: tap someone else&apos;s card to peek at it</>
       : <>👸 now swap it with one of your cards — or keep yours</>;
   } else if (state.phase === 'play' && turnPlayer && turnPlayer.pid !== me.pid) {
     hint = <>{turnPlayer.name} is thinking… <span className="opacity-60">psst — you can snap matching cards anytime!</span></>;
@@ -307,7 +534,8 @@ export function GameTable({
             {state.drawn && (
               <div style={{ position: 'absolute', inset: 0, zIndex: 2, scale: myTurn ? '1.12' : '1' }}>
                 <PlayingCard
-                  id={state.drawn.id}
+                  id={state.drawn.from === 'stock' ? `draw-${state.drawn.id}` : state.drawn.id}
+                  noLayout={state.drawn.from === 'stock'}
                   card={
                     state.drawn.card // taken from the discard — public
                     ?? (state.turnPid === me.pid
@@ -332,7 +560,8 @@ export function GameTable({
           const pos = seatPos(offset);
           const isMe = p.pid === me.pid;
           const size: CardSize = isMe ? 'md' : otherSize;
-          const cols = Math.max(2, Math.ceil(p.cards.length / 2));
+          const slots = handSlotsByPid[p.pid] ?? p.cards;
+          const cols = Math.max(2, Math.ceil(Math.max(slots.length, p.cards.length) / 2));
           const plate = (
             <div style={{ position: 'relative' }}>
               {p.pid === state.caboPid && <span className="cabo-badge">CABO!</span>}
@@ -351,7 +580,16 @@ export function GameTable({
             >
               {pos.topHalf && plate}
               <div className="hand-grid" style={{ ['--cols' as string]: cols }}>
-                {p.cards.map((cid) => {
+                {slots.map((cid, slotIdx) => {
+                    if (!cid) {
+                      return (
+                        <div
+                          key={`empty-${slotIdx}`}
+                          className={`hand-slot-empty hand-slot-${size}`}
+                          aria-hidden="true"
+                        />
+                      );
+                    }
                     const face = faceOf(cid);
                     const target = isTarget(cid, p.pid);
                     const caboProtected = !!state.caboPid && p.pid === state.caboPid && p.pid !== me.pid;
@@ -366,6 +604,7 @@ export function GameTable({
                           selectable={target}
                           selected={blindSel.includes(cid)}
                           wobble={wobbleId === cid}
+                          popKey={cardPop?.id === cid ? cardPop.key : 0}
                           onClick={clickable ? () => clickCard(cid, p.pid) : undefined}
                         />
                         {peekedBy[cid] && (
@@ -415,9 +654,50 @@ export function GameTable({
         {/* game over */}
         {state.phase === 'gameOver' && <GameOverPanel state={state} me={me} onLeave={onLeave} />}
         {state.phase === 'gameOver' && <Confetti />}
+        <AnimatePresence>
+          {swapFlight && <SwapFlightLayer key={swapFlight.key} flight={swapFlight} />}
+        </AnimatePresence>
         {showValues && <ValuesPanel onClose={() => setShowValues(false)} />}
       </div>
     </LayoutGroup>
+  );
+}
+
+function SwapFlightLayer({ flight }: { flight: SwapFlight }) {
+  const renderCard = (kind: 'incoming' | 'outgoing', item: SwapFlightCard) => {
+    const lift = Math.min(item.from.y, item.to.y) - 28;
+    const rotateMid = kind === 'incoming' ? 3 : -4;
+    return (
+      <motion.div
+        key={`${kind}-${item.id}`}
+        className="swap-flight-card"
+        style={{ width: FLIGHT_CARD_W, height: FLIGHT_CARD_H }}
+        initial={{
+          x: item.from.x,
+          y: item.from.y,
+          scale: item.from.scale,
+          rotate: 0,
+          opacity: 1,
+        }}
+        animate={{
+          x: [item.from.x, item.to.x],
+          y: [item.from.y, lift, item.to.y],
+          scale: [item.from.scale, 1.14, item.to.scale],
+          rotate: [0, rotateMid, item.rotateTo],
+          opacity: [1, 1, 0],
+        }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.36, ease: [0.25, 0.8, 0.2, 1], times: [0, 0.48, 1] }}
+      >
+        <PlayingCard id={`flight-${kind}-${flight.key}-${item.id}`} noLayout card={item.card} size="md" />
+      </motion.div>
+    );
+  };
+
+  return (
+    <div className="swap-flight-layer" aria-hidden="true">
+      {renderCard('incoming', flight.incoming)}
+    </div>
   );
 }
 
@@ -456,7 +736,7 @@ export function ValuesPanel({ onClose }: { onClose: () => void }) {
           <div className="result-row"><b className="px-body text-lg">7·8</b>&nbsp; peek at one of YOUR cards</div>
           <div className="result-row"><b className="px-body text-lg">9·10</b>&nbsp; spy on someone ELSE&apos;s card</div>
           <div className="result-row"><b className="px-body text-lg">J</b>&nbsp; blind swap — one of yours ↔ one of theirs</div>
-          <div className="result-row"><b className="px-body text-lg">Q</b>&nbsp; peek ANY card, then swap it with yours if you like</div>
+          <div className="result-row"><b className="px-body text-lg">Q</b>&nbsp; peek someone ELSE&apos;s card, then swap it with yours if you like</div>
         </div>
         <h3 className="font-bold mb-2">winning</h3>
         <div className="flex flex-col gap-2 text-sm leading-snug">

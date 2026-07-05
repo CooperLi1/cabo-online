@@ -249,7 +249,7 @@ function PowersScene() {
     { ranks: ['7', '8'], icon: <PixelSprite grid={EYE} color="#453950" color2="#fffdfa" size={44} />, label: 'tap one of YOUR cards to peek at it' },
     { ranks: ['9', '10'], icon: <PixelSprite grid={EYE} color="#7a63b8" color2="#fffdfa" size={44} />, label: "tap someone ELSE's card to spy on it" },
     { ranks: ['J'], icon: <span style={{ fontSize: 34 }}>🔀</span>, label: 'jack: blind-swap — tap one of yours + one of theirs, no peeking' },
-    { ranks: ['Q'], icon: <PixelSprite grid={CROWN} color="#f5c94f" size={48} />, label: 'queen: peek ANY card, then swap it with one of yours if you like' },
+    { ranks: ['Q'], icon: <PixelSprite grid={CROWN} color="#f5c94f" size={48} />, label: "queen: peek someone ELSE's card, then swap it with one of yours if you like" },
   ];
   const p = powers[phase];
   return (

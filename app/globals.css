@@ -163,6 +163,12 @@ h1, h2, h3, .font-round { font-family: var(--font-px); }
   inset: 0;
   transform-style: preserve-3d;
 }
+.pcard-pop-shell {
+  position: absolute;
+  inset: 0;
+  transform-origin: center;
+  transform-style: preserve-3d;
+}
 .pcard-face {
   position: absolute;
   inset: 0;
@@ -249,6 +255,19 @@ h1, h2, h3, .font-round { font-family: var(--font-px); }
 .pcard-selected .pcard-face { border-color: var(--butter-deep) !important; animation: none; }
 .pcard-selected .pcard-inner { translate: 0 -4px; }
 .pcard-dimmed { opacity: 0.55; filter: saturate(0.7); }
+.pcard-pop-a, .pcard-pop-b { z-index: 8; }
+.pcard-pop-a .pcard-pop-shell { animation: cardPopA 0.22s steps(5); }
+.pcard-pop-b .pcard-pop-shell { animation: cardPopB 0.22s steps(5); }
+@keyframes cardPopA {
+  0%, 100% { transform: scale(1) translateY(0); }
+  45% { transform: scale(1.18) translateY(-3px); }
+  70% { transform: scale(0.98) translateY(0); }
+}
+@keyframes cardPopB {
+  0%, 100% { transform: scale(1) translateY(0); }
+  45% { transform: scale(1.18) translateY(-3px); }
+  70% { transform: scale(0.98) translateY(0); }
+}
 .pcard-wobble { animation: wobble 0.5s steps(6); }
 @keyframes wobble {
   0%, 100% { transform: rotate(0) translateX(0); }
@@ -332,6 +351,17 @@ h1, h2, h3, .font-round { font-family: var(--font-px); }
   gap: 6px;
   justify-items: center;
 }
+.hand-slot-empty {
+  width: var(--w, 60px);
+  aspect-ratio: 5 / 7;
+  flex: none;
+  opacity: 0;
+  pointer-events: none;
+}
+.hand-slot-xs { --w: 36px; }
+.hand-slot-sm { --w: 48px; }
+.hand-slot-md { --w: 60px; }
+.hand-slot-lg { --w: 78px; }
 
 .cabo-badge {
   position: absolute;
@@ -388,6 +418,19 @@ h1, h2, h3, .font-round { font-family: var(--font-px); }
   inset: 0;
   background: rgba(255, 255, 255, 0.25);
   border: 3px dashed rgba(47, 125, 92, 0.5);
+}
+
+.swap-flight-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 38;
+  pointer-events: none;
+}
+.swap-flight-card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: center;
 }
 
 .snap-ring {

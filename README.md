@@ -92,14 +92,17 @@ the server isn't up.
 
 ## House rules implemented
 
+- Deck is a standard **54-card** deck: 52 suited cards plus 2 jokers
 - Joker **0** · Ace **1** · 2–10 face value · J **11** · Q **12** ·
   red kings **−1** · black kings **25**
 - Everyone gets 4 face-down cards and peeks at 2 to start — then it's all memory
+- When the deck runs out, the discard pile shuffles back into the deck; if no
+  cards exist in either pile, the round ends and lowest total wins
 - On your turn: draw from the deck (or take the top discard, which must be
   swapped in), then swap into the same slot or toss the draw onto the pile
 - Power cards (when tossed straight to the pile): **7/8** peek your own,
-  **9/10** spy on someone else's, **J** blind swap, **Q** peek any card then
-  optionally swap it with yours.
+  **9/10** spy on someone else's, **J** blind swap, **Q** peek someone else's
+  card then optionally swap it with yours.
 - **Snap** a card matching the top of the discard anytime — yours or anyone's
   (snapping someone else's means you hand them one of your cards). Wrong card
   *or* too slow → penalty card. Snap races are resolved by true reaction time
