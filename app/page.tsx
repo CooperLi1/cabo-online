@@ -29,6 +29,7 @@ export default function Page() {
   const lastFxSeq = useRef(0);
   const meRef = useRef<Me | null>(null);
   const prevPhase = useRef<string | null>(null);
+  const activeRoomRef = useRef<string | null>(null);
 
   const toast = useCallback((text: string) => {
     const id = toastSeq++;
@@ -156,6 +157,7 @@ export default function Page() {
   useEffect(() => {
     const s = getSocket();
     const onState = (st: GameState) => {
+      if (!activeRoomRef.current || st.code !== activeRoomRef.current) return;
       setState(st);
       // peek phase over → initial peeks always flip back down, even if the
       // round-start fx slid out of the fx window
@@ -175,6 +177,7 @@ export default function Page() {
       }
     };
     const onPrivate = (msg: PrivateMsg) => {
+      if (!activeRoomRef.current) return;
       if (msg.type === 'peek') { remember(msg.card, null); sfx.flip(); } // stays face-up through the peek phase
       else if (msg.type === 'drawn') {
         // only visible while it sits in the draw slot — once it joins a hand
@@ -194,9 +197,14 @@ export default function Page() {
         const saved = JSON.parse(localStorage.getItem('cabo-session') || 'null');
         if (saved?.code && saved?.token) {
           s.emit('rejoin', saved, (res: { ok?: boolean; code?: string; token?: string; pid?: string }) => {
-            if (res.ok) setMe({ pid: res.pid!, token: res.token!, code: res.code! });
+            if (res.ok) {
+              activeRoomRef.current = res.code!;
+              setMe({ pid: res.pid!, token: res.token!, code: res.code! });
+            }
             else {
               localStorage.removeItem('cabo-session');
+              activeRoomRef.current = null;
+              meRef.current = null;
               setMe(null);
               setState(null);
             }
@@ -214,11 +222,14 @@ export default function Page() {
   }, [handleFx, remember]);
 
   const joined = useCallback((res: { pid: string; token: string; code: string }) => {
+    activeRoomRef.current = res.code;
     setMe(res);
     localStorage.setItem('cabo-session', JSON.stringify({ code: res.code, token: res.token }));
   }, []);
 
   const leave = useCallback(() => {
+    activeRoomRef.current = null;
+    meRef.current = null;
     getSocket().emit('leave');
     localStorage.removeItem('cabo-session');
     setMe(null);
@@ -226,6 +237,10 @@ export default function Page() {
     setKnown({});
     setDrawnKnown({});
     setSeen(new Set());
+    setPeekedBy({});
+    setWobbleId(null);
+    setToasts([]);
+    prevPhase.current = null;
     lastFxSeq.current = 0;
   }, []);
 

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { GameState } from '@/lib/types';
 import type { Me } from '@/app/page';
@@ -22,6 +22,29 @@ export function Lobby({
 }) {
   const [copied, setCopied] = useState(false);
   const isHost = state.hostPid === me.pid;
+  const turnSeconds = Math.round(state.turnMs / 1000);
+  const [turnDraft, setTurnDraft] = useState(String(turnSeconds));
+  const [editingTurn, setEditingTurn] = useState(false);
+
+  useEffect(() => {
+    if (!editingTurn) setTurnDraft(String(turnSeconds));
+  }, [editingTurn, turnSeconds]);
+
+  const setTurnSeconds = (seconds: number) => {
+    const clamped = Math.min(Math.max(Math.round(seconds), 3), 120);
+    getSocket().emit('setTurnMs', { turnMs: clamped * 1000 });
+    return clamped;
+  };
+
+  const commitTurnDraft = () => {
+    const parsed = parseInt(turnDraft, 10);
+    if (Number.isFinite(parsed)) {
+      setTurnDraft(String(setTurnSeconds(parsed)));
+    } else {
+      setTurnDraft(String(turnSeconds));
+    }
+    setEditingTurn(false);
+  };
 
   const copy = () => {
     const url = `${window.location.origin}/?join=${state.code}`;
@@ -88,12 +111,30 @@ export function Lobby({
           {isHost ? (
             <>
               <input
-                type="range" min={10} max={120} step={5}
-                value={Math.round(state.turnMs / 1000)}
-                onChange={(e) => getSocket().emit('setTurnMs', { turnMs: parseInt(e.target.value, 10) * 1000 })}
+                type="range" min={3} max={120} step={1}
+                value={turnSeconds}
+                onChange={(e) => setTurnSeconds(parseInt(e.target.value, 10))}
                 onPointerUp={() => sfx.click()}
               />
-              <span className="px-body text-lg" style={{ width: 46 }}>{Math.round(state.turnMs / 1000)}s</span>
+              <input
+                type="number" min={3} max={120} step={1} inputMode="numeric"
+                className="input turn-num"
+                value={editingTurn ? turnDraft : String(turnSeconds)}
+                onFocus={() => {
+                  setEditingTurn(true);
+                  setTurnDraft(String(turnSeconds));
+                }}
+                onChange={(e) => setTurnDraft(e.target.value)}
+                onBlur={commitTurnDraft}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.currentTarget.blur();
+                  if (e.key === 'Escape') {
+                    setTurnDraft(String(turnSeconds));
+                    e.currentTarget.blur();
+                  }
+                }}
+              />
+              <span className="tagline text-sm">s</span>
             </>
           ) : (
             <span className="chip" style={{ padding: '2px 10px' }}>{Math.round(state.turnMs / 1000)}s</span>

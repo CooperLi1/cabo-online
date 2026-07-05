@@ -261,7 +261,7 @@ function PowersScene() {
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: -60, opacity: 0 }}
           transition={spring}
-          style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 22, flexDirection: 'column' }}
+          className="power-tut-content"
         >
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             {p.ranks.map((r) => (
@@ -270,10 +270,10 @@ function PowersScene() {
             ))}
             <div style={{ marginLeft: 8 }}>{p.icon}</div>
           </div>
-          <div className="bubble" style={{ maxWidth: 300, textAlign: 'center' }}>{p.label}</div>
+          <div className="bubble power-tut-callout">{p.label}</div>
         </motion.div>
       </AnimatePresence>
-      <div className="tut-abs px-body" style={{ bottom: 8, left: 0, right: 0, textAlign: 'center', opacity: 0.75, fontSize: 15 }}>
+      <div className="tut-abs px-body power-tut-note">
         powers trigger when you toss the drawn card straight onto the pile — kings have NO power
       </div>
     </Stage>

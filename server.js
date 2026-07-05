@@ -76,6 +76,7 @@ app.prepare().then(() => {
     socket.on('leave', () => {
       const { room, player } = ctx();
       if (room && player) room.removePlayer(player);
+      if (socket.data.code) socket.leave(socket.data.code);
       socket.data.code = null;
       socket.data.token = null;
     });

@@ -45,6 +45,7 @@ export function GameTable({
   const [burst, setBurst] = useState(0);
   const lastEpoch = useRef(state.snapEpoch);
   const lastFxSeq = useRef(0);
+  const snapCooldownUntil = useRef(0);
 
   // reset blind-swap selection whenever the power context changes
   useEffect(() => { setBlindSel([]); }, [state.stage, state.powerKind, state.turnPid]);
@@ -55,9 +56,10 @@ export function GameTable({
     if (state.snapEpoch !== lastEpoch.current) {
       lastEpoch.current = state.snapEpoch;
       epochSeenAt.current = performance.now();
+      if (state.snapLocked) snapCooldownUntil.current = performance.now() + 900;
       setSnapRingKey((k) => k + 1);
     }
-  }, [state.snapEpoch]);
+  }, [state.snapEpoch, state.snapLocked]);
 
   // SNAP! burst on hits
   useEffect(() => {
@@ -65,12 +67,13 @@ export function GameTable({
       if (fx.seq > lastFxSeq.current) {
         lastFxSeq.current = fx.seq;
         if (fx.type === 'snap-hit') {
+          if (fx.pid === me.pid) snapCooldownUntil.current = performance.now() + 900;
           setBurst(Date.now());
           setTimeout(() => setBurst(0), 850);
         }
       }
     }
-  }, [state.fxs]);
+  }, [state.fxs, me.pid]);
 
   // ---------- timer ----------
   const [now, setNow] = useState(() => Date.now());
@@ -102,6 +105,8 @@ export function GameTable({
     if (k && (k.until === null || k.until > Date.now())) return k.card;
     return null;
   }, [revealMap, known]);
+
+  const snapPossible = state.phase === 'play' && !iAmGiving && !(myTurn && (state.stage === 'decide' || state.stage === 'power'));
 
   // ---------- interactions ----------
   const clickCard = useCallback((cardId: string, ownerPid: string) => {
@@ -144,8 +149,10 @@ export function GameTable({
     }
     // anything else = SNAP attempt — send true reaction time since the
     // snappable card appeared on this screen
+    if (!snapPossible || state.snapLocked || performance.now() < snapCooldownUntil.current) return;
+    snapCooldownUntil.current = performance.now() + 120;
     s.emit('snap', { cardId, reaction: Math.round(performance.now() - epochSeenAt.current) });
-  }, [state, me.pid, meP, myTurn, iAmGiving, known, s]);
+  }, [state, me.pid, meP, myTurn, iAmGiving, known, snapPossible, s]);
 
   const clickStock = useCallback(() => {
     if (myTurn && state.stage === 'draw' && !state.pendingGive) s.emit('drawStock');
@@ -173,8 +180,6 @@ export function GameTable({
     }
     return false;
   }, [state, me.pid, meP, myTurn, iAmGiving, known]);
-
-  const snapPossible = state.phase === 'play' && !iAmGiving && !(myTurn && (state.stage === 'decide' || state.stage === 'power'));
 
   // ---------- seats ----------
   const seatPos = (offset: number) => {
