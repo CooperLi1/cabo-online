@@ -141,17 +141,39 @@ export function Lobby({
           )}
         </div>
         {isHost && state.players.length < 12 && (
-          <div className="flex items-center gap-2">
-            <span className="tagline text-sm">add a bot:</span>
-            {(['easy', 'medium', 'expert'] as const).map((lvl) => (
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <span className="tagline text-sm">add a bot:</span>
+              {(['easy', 'medium', 'expert'] as const).map((lvl) => (
+                <button
+                  key={lvl}
+                  className="btn btn-small"
+                  onClick={() => { sfx.click(); getSocket().emit('addBot', { level: lvl }); }}
+                >
+                  🤖 {lvl}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {isHost && (
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <span className="tagline text-sm">bot speed:</span>
+            {(['slow', 'normal', 'fast'] as const).map((speed) => (
               <button
-                key={lvl}
-                className="btn btn-small"
-                onClick={() => { sfx.click(); getSocket().emit('addBot', { level: lvl }); }}
+                key={speed}
+                className={`btn btn-small ${state.botSpeed === speed ? 'btn-mint' : ''}`}
+                onClick={() => { sfx.click(); getSocket().emit('setBotSpeed', { speed }); }}
               >
-                🤖 {lvl}
+                {speed}
               </button>
             ))}
+          </div>
+        )}
+        {!isHost && state.players.some((p) => p.isBot) && (
+          <div className="turn-slider">
+            <span className="tagline text-sm">bot speed:</span>
+            <span className="chip" style={{ padding: '2px 10px' }}>{state.botSpeed}</span>
           </div>
         )}
         {isHost ? (

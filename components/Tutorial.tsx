@@ -274,7 +274,7 @@ function PowersScene() {
         </motion.div>
       </AnimatePresence>
       <div className="tut-abs px-body power-tut-note">
-        powers trigger when you toss the drawn card straight onto the pile — kings have NO power
+        powers trigger when you toss the drawn card straight onto the pile
       </div>
     </Stage>
   );

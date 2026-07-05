@@ -167,6 +167,7 @@ export function GameTable({
   // is this card an "action target" right now? (blinking highlight)
   const isTarget = useCallback((cardId: string, ownerPid: string): boolean => {
     const mine = ownerPid === me.pid;
+    const caboProtected = !!state.caboPid && ownerPid === state.caboPid && ownerPid !== me.pid;
     if (state.phase === 'peek') return mine && meP.peeksLeft > 0 && !known[cardId];
     if (state.phase !== 'play') return false;
     if (iAmGiving) return mine;
@@ -174,9 +175,9 @@ export function GameTable({
     if (myTurn && state.stage === 'power') {
       const kind = state.powerKind;
       if (kind === 'peek-own') return mine;
-      if (kind === 'peek-other') return !mine;
-      if (kind === 'blind-swap') return true;
-      if (kind === 'peek-swap') return !state.qPeeked ? true : mine;
+      if (kind === 'peek-other') return !mine && !caboProtected;
+      if (kind === 'blind-swap') return mine || !caboProtected;
+      if (kind === 'peek-swap') return !state.qPeeked ? !caboProtected : mine;
     }
     return false;
   }, [state, me.pid, meP, myTurn, iAmGiving, known]);
@@ -353,7 +354,8 @@ export function GameTable({
                 {p.cards.map((cid) => {
                     const face = faceOf(cid);
                     const target = isTarget(cid, p.pid);
-                    const clickable = target || (snapPossible && !face);
+                    const caboProtected = !!state.caboPid && p.pid === state.caboPid && p.pid !== me.pid;
+                    const clickable = target || (snapPossible && !face && !caboProtected);
                     return (
                       <div key={cid} style={{ position: 'relative' }}>
                         <PlayingCard
@@ -455,7 +457,6 @@ export function ValuesPanel({ onClose }: { onClose: () => void }) {
           <div className="result-row"><b className="px-body text-lg">9·10</b>&nbsp; spy on someone ELSE&apos;s card</div>
           <div className="result-row"><b className="px-body text-lg">J</b>&nbsp; blind swap — one of yours ↔ one of theirs</div>
           <div className="result-row"><b className="px-body text-lg">Q</b>&nbsp; peek ANY card, then swap it with yours if you like</div>
-          <div className="result-row"><b className="px-body text-lg">K</b>&nbsp; no power — black kings are pure poison</div>
         </div>
         <h3 className="font-bold mb-2">winning</h3>
         <div className="flex flex-col gap-2 text-sm leading-snug">

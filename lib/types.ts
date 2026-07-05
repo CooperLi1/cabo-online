@@ -68,6 +68,7 @@ export interface GameState {
   snapEpoch: number;
   snapLocked: boolean;
   turnMs: number;
+  botSpeed: 'slow' | 'normal' | 'fast';
   pendingGive: { fromPid: string; toPid: string } | null;
   deadline: number | null;
   reveal: Record<string, CardInfo[]> | null;

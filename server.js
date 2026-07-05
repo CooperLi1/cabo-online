@@ -105,6 +105,7 @@ app.prepare().then(() => {
       addBot: (room, p, d) => room.addBot(p, d.level),
       removeBot: (room, p, d) => room.removeBot(p, d.pid),
       setTurnMs: (room, p, d) => room.setTurnMs(p, d.turnMs),
+      setBotSpeed: (room, p, d) => room.setBotSpeed(p, d.speed),
     };
     for (const [name, fn] of Object.entries(acts)) {
       socket.on(name, (data) => {

@@ -99,7 +99,7 @@ the server isn't up.
   swapped in), then swap into the same slot or toss the draw onto the pile
 - Power cards (when tossed straight to the pile): **7/8** peek your own,
   **9/10** spy on someone else's, **J** blind swap, **Q** peek any card then
-  optionally swap it with yours. Kings have no power.
+  optionally swap it with yours.
 - **Snap** a card matching the top of the discard anytime — yours or anyone's
   (snapping someone else's means you hand them one of your cards). Wrong card
   *or* too slow → penalty card. Snap races are resolved by true reaction time
