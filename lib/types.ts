@@ -11,6 +11,8 @@ export interface PlayerState {
   name: string;
   avatar: string;
   connected: boolean;
+  isBot?: boolean;
+  botLevel?: 'easy' | 'medium' | 'expert' | null;
   cards: string[]; // card ids only — values stay secret on the server
   peeksLeft: number;
   isTurn: boolean;
@@ -37,7 +39,7 @@ export interface Fx {
   aId?: string;
   bId?: string;
   from?: string;
-  king?: boolean;
+  queen?: boolean;
   power?: string | null;
   top?: CardInfo;
   shown?: CardInfo;
@@ -59,11 +61,13 @@ export interface GameState {
   discard: CardInfo[]; // top few cards, last = top of pile
   turnPid: string | null;
   stage: 'draw' | 'decide' | 'power' | null;
-  drawn: { id: string; from: 'stock' | 'discard' } | null;
-  powerKind: 'peek-own' | 'peek-other' | 'blind-swap' | 'king' | null;
-  kingPeeked: string | null;
+  drawn: { id: string; from: 'stock' | 'discard'; card?: CardInfo } | null;
+  powerKind: 'peek-own' | 'peek-other' | 'blind-swap' | 'peek-swap' | null;
+  qPeeked: string | null;
   caboPid: string | null;
   snapEpoch: number;
+  snapLocked: boolean;
+  turnMs: number;
   pendingGive: { fromPid: string; toPid: string } | null;
   deadline: number | null;
   reveal: Record<string, CardInfo[]> | null;

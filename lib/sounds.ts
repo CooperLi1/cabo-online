@@ -1,8 +1,8 @@
 'use client';
 // Tiny WebAudio synth — soft pastel blips, no asset files.
+import { getAudioSettings } from './audio';
 
 let ctx: AudioContext | null = null;
-let muted = false;
 
 function ac(): AudioContext | null {
   if (typeof window === 'undefined') return null;
@@ -15,12 +15,12 @@ function ac(): AudioContext | null {
   return ctx;
 }
 
-export function setMuted(m: boolean) { muted = m; }
-export function isMuted() { return muted; }
-
 function tone(freq: number, dur = 0.12, type: OscillatorType = 'sine', vol = 0.16, when = 0, glide?: number) {
+  const level = getAudioSettings().sfx;
+  if (level <= 0) return;
+  vol *= level;
   const a = ac();
-  if (!a || muted) return;
+  if (!a) return;
   const t = a.currentTime + when;
   const o = a.createOscillator();
   const g = a.createGain();
@@ -36,8 +36,11 @@ function tone(freq: number, dur = 0.12, type: OscillatorType = 'sine', vol = 0.1
 }
 
 function noise(dur = 0.08, vol = 0.06, when = 0) {
+  const level = getAudioSettings().sfx;
+  if (level <= 0) return;
+  vol *= level;
   const a = ac();
-  if (!a || muted) return;
+  if (!a) return;
   const t = a.currentTime + when;
   const len = Math.floor(a.sampleRate * dur);
   const buf = a.createBuffer(1, len, a.sampleRate);

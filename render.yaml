@@ -1,0 +1,11 @@
+# Render blueprint — deploys the whole game (UI + Socket.IO server in one
+# process). On render.com: New → Blueprint → pick this repo, and this file
+# fills in every setting automatically.
+services:
+  - type: web
+    name: cabo
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PlayingCard } from './PlayingCard';
 import { PixelAvatar } from './PixelAvatar';
@@ -56,7 +56,7 @@ function GoalScene() {
           <PlayingCard id={`g${i}`} noLayout size="md" card={i < shown ? { id: `g${i}`, ...c } : null} />
           <AnimatePresence>
             {i < shown && (
-              <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="text-center font-bold mt-1">
+              <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="text-center px-body text-lg mt-1">
                 {sums[i]}
               </motion.div>
             )}
@@ -102,7 +102,7 @@ function ValuesScene() {
           <AnimatePresence>
             {i < shown && (
               <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
-                className="text-center font-bold mt-1"
+                className="text-center px-body text-lg mt-1"
                 style={{ color: c.note.includes('!') ? 'var(--pink-deep)' : undefined }}>
                 {c.note}
               </motion.div>
@@ -159,9 +159,6 @@ function TurnScene() {
   const disc = { x: 320, y: 60 };
   const hand0 = { x: 155, y: 170 };
   const drawnPos = { x: 190, y: 55 };
-
-  const firstDrawn = phase >= 1 && phase <= 2;
-  const secondDrawn = phase >= 4;
 
   return (
     <Stage>
@@ -251,8 +248,8 @@ function PowersScene() {
   const powers = [
     { ranks: ['7', '8'], icon: <PixelSprite grid={EYE} color="#453950" color2="#fffdfa" size={44} />, label: 'tap one of YOUR cards to peek at it' },
     { ranks: ['9', '10'], icon: <PixelSprite grid={EYE} color="#7a63b8" color2="#fffdfa" size={44} />, label: "tap someone ELSE's card to spy on it" },
-    { ranks: ['J', 'Q'], icon: <span style={{ fontSize: 34 }}>🔀</span>, label: 'blind-swap: tap one of yours + one of theirs' },
-    { ranks: ['K'], icon: <PixelSprite grid={CROWN} color="#f5c94f" size={48} />, label: 'BLACK king only: peek ANY card, then swap it with yours if you like' },
+    { ranks: ['J'], icon: <span style={{ fontSize: 34 }}>🔀</span>, label: 'jack: blind-swap — tap one of yours + one of theirs, no peeking' },
+    { ranks: ['Q'], icon: <PixelSprite grid={CROWN} color="#f5c94f" size={48} />, label: 'queen: peek ANY card, then swap it with one of yours if you like' },
   ];
   const p = powers[phase];
   return (
@@ -277,7 +274,7 @@ function PowersScene() {
         </motion.div>
       </AnimatePresence>
       <div className="tut-abs px-body" style={{ bottom: 8, left: 0, right: 0, textAlign: 'center', opacity: 0.75, fontSize: 15 }}>
-        powers trigger when you toss the drawn card straight onto the discard pile
+        powers trigger when you toss the drawn card straight onto the pile — kings have NO power
       </div>
     </Stage>
   );

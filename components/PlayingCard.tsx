@@ -3,7 +3,7 @@ import { memo } from 'react';
 import { motion } from 'motion/react';
 import type { CardInfo } from '@/lib/types';
 import { cardValue } from '@/lib/types';
-import { PixelSuit, PixelSprite, SPARKLE } from './PixelSprite';
+import { PixelSuit, PixelSprite, PixelText, SPARKLE } from './PixelSprite';
 
 const SUIT_COLOR: Record<string, string> = {
   '♥': '#ff6e8c',
@@ -72,13 +72,19 @@ export const PlayingCard = memo(function PlayingCard({
         <div className="pcard-face pcard-front" style={{ color }}>
           {card && (
             <>
-              <span className="pcard-corner">{rankLabel}</span>
+              {rankLabel && (
+                <span className="pcard-corner">
+                  <PixelText text={rankLabel} height={w * 0.24} color={color} />
+                </span>
+              )}
               {card.r === 'X' ? (
                 <PixelSuit suit="★" size={w * 0.5} color={color} className="pcard-pip" />
               ) : (
                 <PixelSuit suit={card.s} size={w * 0.44} color={color} className="pcard-pip" />
               )}
-              <span className="pcard-value">{cardValue(card)}</span>
+              <span className="pcard-value">
+                <PixelText text={String(cardValue(card))} height={w * 0.13} color="#fffdfa" />
+              </span>
             </>
           )}
         </div>

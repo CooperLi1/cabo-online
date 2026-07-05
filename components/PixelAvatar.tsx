@@ -196,6 +196,8 @@ export function avatarName(id: string) {
   return CHARACTERS[id]?.name ?? 'Mochi';
 }
 
+const OUTLINE = '#453950';
+
 export const PixelAvatar = memo(function PixelAvatar({
   id,
   size = 48,
@@ -208,6 +210,21 @@ export const PixelAvatar = memo(function PixelAvatar({
   const char = CHARACTERS[id] ?? CHARACTERS.cat;
   const pal: Record<string, string> = { ...DEFAULTS, ...char.palette };
   const rects: React.ReactNode[] = [];
+  const filled = new Set<string>();
+  char.grid.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) if (row[x] !== '.') filled.add(`${x},${y}`);
+  });
+  // 1px pixel outline around the character so it never blends into a background
+  const outline: React.ReactNode[] = [];
+  for (let y = -1; y <= 12; y++) {
+    for (let x = -1; x <= 12; x++) {
+      if (filled.has(`${x},${y}`)) continue;
+      if (filled.has(`${x + 1},${y}`) || filled.has(`${x - 1},${y}`) ||
+          filled.has(`${x},${y + 1}`) || filled.has(`${x},${y - 1}`)) {
+        outline.push(<rect key={`o${x},${y}`} x={x} y={y} width={1} height={1} fill={OUTLINE} />);
+      }
+    }
+  }
   char.grid.forEach((row, y) => {
     // merge horizontal runs of the same color into single rects
     let x = 0;
@@ -222,13 +239,14 @@ export const PixelAvatar = memo(function PixelAvatar({
   });
   return (
     <svg
-      viewBox="0 0 12 12"
+      viewBox="-1 -1 14 14"
       width={size}
       height={size}
       className={className}
       shapeRendering="crispEdges"
       aria-label={char.name}
     >
+      {outline}
       {rects}
     </svg>
   );

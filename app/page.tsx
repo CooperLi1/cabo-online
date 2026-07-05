@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CardInfo, GameState, Fx, PrivateMsg } from '@/lib/types';
 import { getSocket } from '@/lib/socket';
-import { sfx, setMuted, isMuted } from '@/lib/sounds';
+import { sfx } from '@/lib/sounds';
+import { startMusic } from '@/lib/music';
 import { Home } from '@/components/Home';
 import { Lobby } from '@/components/Lobby';
 import { GameTable } from '@/components/GameTable';
@@ -25,9 +26,9 @@ export default function Page() {
   const [wobbleId, setWobbleId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [showTutorial, setShowTutorial] = useState(false);
-  const [muted, setMutedState] = useState(false);
   const lastFxSeq = useRef(0);
   const meRef = useRef<Me | null>(null);
+  const prevPhase = useRef<string | null>(null);
 
   const toast = useCallback((text: string) => {
     const id = toastSeq++;
@@ -43,7 +44,8 @@ export default function Page() {
         setKnown((k) => {
           const e = k[card.id];
           if (!e || e.until === null || e.until > Date.now()) return k;
-          const { [card.id]: _drop, ...rest } = k;
+          const rest = { ...k };
+          delete rest[card.id];
           return rest;
         });
       }, ms + 60);
@@ -80,7 +82,7 @@ export default function Page() {
       case 'discard':
         sfx.discard();
         if (fx.power && fx.pid !== myPid) {
-          const label = { 'peek-own': 'peek!', 'peek-other': 'spy!', 'blind-swap': 'swap!', king: 'king!' }[fx.power as 'peek-own' | 'peek-other' | 'blind-swap' | 'king'];
+          const label = { 'peek-own': 'peek!', 'peek-other': 'spy!', 'blind-swap': 'swap!', 'peek-swap': 'queen peek!' }[fx.power as 'peek-own' | 'peek-other' | 'blind-swap' | 'peek-swap'];
           toast(`${name(fx.pid)} discarded a power card — ${label}`);
         }
         break;
@@ -93,7 +95,8 @@ export default function Page() {
           const cid = fx.cardId;
           setPeekedBy((m) => ({ ...m, [cid]: Date.now() + 2400 }));
           setTimeout(() => setPeekedBy((m) => {
-            const { [cid]: _d, ...rest } = m;
+            const rest = { ...m };
+            delete rest[cid];
             return rest;
           }), 2500);
         }
@@ -105,7 +108,7 @@ export default function Page() {
         break;
       case 'blind-swap':
         sfx.swap();
-        toast(`${name(fx.pid)} ${fx.king ? 'used the king on' : 'blind-swapped with'} ${name(fx.targetPid)}!`);
+        toast(`${name(fx.pid)} ${fx.queen ? 'queen-swapped with' : 'blind-swapped with'} ${name(fx.targetPid)}!`);
         break;
       case 'snap-hit':
         sfx.snapHit();
@@ -115,7 +118,7 @@ export default function Page() {
         break;
       case 'snap-miss':
         sfx.snapMiss();
-        if (fx.shown) remember(fx.shown, 2200);
+        if (fx.shown) remember(fx.shown, 3000);
         if (fx.cardId) {
           setWobbleId(fx.cardId);
           setTimeout(() => setWobbleId(null), 700);
@@ -143,10 +146,27 @@ export default function Page() {
 
   useEffect(() => { meRef.current = me; }, [me]);
 
+  // background music starts on the first interaction (browser autoplay rules)
+  useEffect(() => {
+    const kick = () => { startMusic(); document.removeEventListener('pointerdown', kick); };
+    document.addEventListener('pointerdown', kick);
+    return () => document.removeEventListener('pointerdown', kick);
+  }, []);
+
   useEffect(() => {
     const s = getSocket();
     const onState = (st: GameState) => {
       setState(st);
+      // peek phase over → initial peeks always flip back down, even if the
+      // round-start fx slid out of the fx window
+      if (prevPhase.current === 'peek' && st.phase !== 'peek') {
+        setKnown((k) => {
+          const rest: Record<string, Known> = {};
+          for (const [id, e] of Object.entries(k)) if (e.until !== null) rest[id] = e;
+          return rest;
+        });
+      }
+      prevPhase.current = st.phase;
       for (const fx of st.fxs ?? []) {
         if (fx.seq > lastFxSeq.current) {
           lastFxSeq.current = fx.seq;
@@ -166,19 +186,30 @@ export default function Page() {
     };
     s.on('state', onState);
     s.on('private', onPrivate);
-    // auto-rejoin after a refresh
-    try {
-      const saved = JSON.parse(localStorage.getItem('cabo-session') || 'null');
-      if (saved?.code && saved?.token) {
-        s.emit('rejoin', saved, (res: { ok?: boolean; code?: string; token?: string; pid?: string }) => {
-          if (res.ok) setMe({ pid: res.pid!, token: res.token!, code: res.code! });
-          else localStorage.removeItem('cabo-session');
-        });
-      }
-    } catch { /* ignore */ }
+    // (re)bind our seat on every connection — a fresh page load AND every
+    // socket.io reconnect (the new server-side socket knows nothing about us,
+    // so without this the game would freeze on stale state)
+    const rejoin = () => {
+      try {
+        const saved = JSON.parse(localStorage.getItem('cabo-session') || 'null');
+        if (saved?.code && saved?.token) {
+          s.emit('rejoin', saved, (res: { ok?: boolean; code?: string; token?: string; pid?: string }) => {
+            if (res.ok) setMe({ pid: res.pid!, token: res.token!, code: res.code! });
+            else {
+              localStorage.removeItem('cabo-session');
+              setMe(null);
+              setState(null);
+            }
+          });
+        }
+      } catch { /* ignore */ }
+    };
+    s.on('connect', rejoin);
+    if (s.connected) rejoin();
     return () => {
       s.off('state', onState);
       s.off('private', onPrivate);
+      s.off('connect', rejoin);
     };
   }, [handleFx, remember]);
 
@@ -196,12 +227,6 @@ export default function Page() {
     setDrawnKnown({});
     setSeen(new Set());
     lastFxSeq.current = 0;
-  }, []);
-
-  const toggleMute = useCallback(() => {
-    const m = !isMuted();
-    setMuted(m);
-    setMutedState(m);
   }, []);
 
   const inRoom = me && state && state.players.some((p) => p.pid === me.pid);
@@ -224,8 +249,6 @@ export default function Page() {
           wobbleId={wobbleId}
           onLeave={leave}
           onTutorial={() => setShowTutorial(true)}
-          muted={muted}
-          onToggleMute={toggleMute}
         />
       )}
       <div className="toasts">

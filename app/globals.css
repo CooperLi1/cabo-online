@@ -202,23 +202,18 @@ h1, h2, h3, .font-round { font-family: var(--font-px); }
 }
 .pcard-corner {
   position: absolute;
-  top: 2%;
-  left: 10%;
-  font-family: var(--font-px);
-  font-weight: 700;
-  font-size: calc(var(--w, 60px) * 0.3);
-  line-height: 1.1;
+  top: 7%;
+  left: 9%;
+  display: flex;
 }
 .pcard-pip { margin-top: 20%; }
 .pcard-value {
   position: absolute;
-  right: 8%;
-  bottom: 4%;
-  font-size: calc(var(--w, 60px) * 0.2);
-  font-weight: 700;
-  font-family: var(--font-px);
-  opacity: 0.5;
-  line-height: 1;
+  right: 5%;
+  bottom: 5%;
+  display: flex;
+  background: var(--ink);
+  padding: calc(var(--w, 60px) * 0.035) calc(var(--w, 60px) * 0.05);
 }
 /* too cramped on small cards */
 .pcard-xs .pcard-value, .pcard-sm .pcard-value { display: none; }
@@ -357,7 +352,7 @@ h1, h2, h3, .font-round { font-family: var(--font-px); }
 .piles {
   position: absolute;
   left: 50%;
-  top: 46%;
+  top: 37%;
   transform: translate(-50%, -50%);
   display: flex;
   gap: 30px;
@@ -382,10 +377,10 @@ h1, h2, h3, .font-round { font-family: var(--font-px); }
   right: -12px;
   background: var(--white);
   border: 2px solid var(--ink);
-  font-size: 0.72rem;
-  font-weight: 700;
-  font-family: var(--font-px);
+  font-size: 0.95rem;
+  font-family: var(--font-px-body);
   padding: 0 6px;
+  line-height: 1.2;
   z-index: 3;
 }
 .pile-under {
@@ -591,6 +586,18 @@ h1, h2, h3, .font-round { font-family: var(--font-px); }
   width: 106px;
 }
 .lobby-chip .nm { font-family: var(--font-px); font-weight: 600; font-size: 0.9rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bot-remove {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-px);
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.bot-remove:hover { color: var(--pink-deep); }
 
 /* confetti */
 .confetti-piece {
@@ -644,7 +651,19 @@ h1, h2, h3, .font-round { font-family: var(--font-px); }
   margin: 12px 0;
 }
 .tut-abs { position: absolute; }
-.tut-caption { font-weight: 600; text-align: center; min-height: 3.4em; font-family: var(--font-px); }
+.tut-caption {
+  font-weight: 500;
+  text-align: center;
+  min-height: 4.4em;
+  font-family: var(--font-px);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  margin-top: 4px;
+}
+@media (max-width: 560px) {
+  .tut-scale { transform: scale(0.68); }
+  .tut-stage { height: 190px; }
+}
 .tut-dots { display: flex; gap: 7px; justify-content: center; }
 .tut-dot { width: 9px; height: 9px; background: var(--pink); transition: all 0.15s; }
 .tut-dot.on { background: var(--pink-deep); width: 22px; }
@@ -667,3 +686,66 @@ h1, h2, h3, .font-round { font-family: var(--font-px); }
   .piles { gap: 16px; }
   .toast { max-width: 200px; font-size: 0.76rem; }
 }
+
+/* ---------- audio popover ---------- */
+
+.audio-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--white);
+  border: 3px solid var(--ink);
+  filter: drop-shadow(0 4px 0 var(--shadow-ink));
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 60;
+}
+.audio-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-px);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.audio-row span { width: 44px; }
+.audio-row input[type='range'], .turn-slider input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 120px;
+  height: 8px;
+  background: repeating-linear-gradient(90deg, var(--lav) 0 6px, var(--lav-strong) 6px 12px);
+  border: 2px solid var(--ink);
+  outline: none;
+  cursor: pointer;
+}
+.audio-row input[type='range']::-webkit-slider-thumb,
+.turn-slider input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--pink-strong);
+  border: 3px solid var(--ink);
+  cursor: pointer;
+}
+.audio-row input[type='range']::-moz-range-thumb,
+.turn-slider input[type='range']::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--pink-strong);
+  border: 3px solid var(--ink);
+  border-radius: 0;
+  cursor: pointer;
+}
+.turn-slider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-px);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.turn-slider input[type='range'] { width: 160px; }

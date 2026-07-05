@@ -1,13 +1,14 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
-import type { CardInfo, GameState, PlayerState } from '@/lib/types';
+import type { CardInfo, GameState } from '@/lib/types';
 import type { Me, Known } from '@/app/page';
 import { getSocket } from '@/lib/socket';
 import { sfx } from '@/lib/sounds';
 import { PixelAvatar } from './PixelAvatar';
 import { PlayingCard, type CardSize } from './PlayingCard';
 import { PixelSprite, EYE } from './PixelSprite';
+import { AudioControl } from './AudioControl';
 
 function hashRot(id: string, spread = 8) {
   let h = 0;
@@ -16,7 +17,7 @@ function hashRot(id: string, spread = 8) {
 }
 
 export function GameTable({
-  state, me, known, drawnKnown, seen, peekedBy, wobbleId, onLeave, onTutorial, muted, onToggleMute,
+  state, me, known, drawnKnown, seen, peekedBy, wobbleId, onLeave, onTutorial,
 }: {
   state: GameState;
   me: Me;
@@ -27,8 +28,6 @@ export function GameTable({
   wobbleId: string | null;
   onLeave: () => void;
   onTutorial: () => void;
-  muted: boolean;
-  onToggleMute: () => void;
 }) {
   const s = getSocket();
   const n = state.players.length;
@@ -50,10 +49,12 @@ export function GameTable({
   // reset blind-swap selection whenever the power context changes
   useEffect(() => { setBlindSel([]); }, [state.stage, state.powerKind, state.turnPid]);
 
-  // discard snap ring on new top card
+  // discard snap ring on new top card + timestamp for true reaction-speed snaps
+  const epochSeenAt = useRef(performance.now());
   useEffect(() => {
     if (state.snapEpoch !== lastEpoch.current) {
       lastEpoch.current = state.snapEpoch;
+      epochSeenAt.current = performance.now();
       setSnapRingKey((k) => k + 1);
     }
   }, [state.snapEpoch]);
@@ -135,14 +136,15 @@ export function GameTable({
           }
           return next.slice(-2);
         });
-      } else if (kind === 'king') {
-        if (!state.kingPeeked) s.emit('usePower', { cardId });
+      } else if (kind === 'peek-swap') {
+        if (!state.qPeeked) s.emit('usePower', { cardId });
         else if (mine) s.emit('usePower', { cardId });
       }
       return;
     }
-    // anything else = SNAP attempt
-    s.emit('snap', { cardId });
+    // anything else = SNAP attempt — send true reaction time since the
+    // snappable card appeared on this screen
+    s.emit('snap', { cardId, reaction: Math.round(performance.now() - epochSeenAt.current) });
   }, [state, me.pid, meP, myTurn, iAmGiving, known, s]);
 
   const clickStock = useCallback(() => {
@@ -167,7 +169,7 @@ export function GameTable({
       if (kind === 'peek-own') return mine;
       if (kind === 'peek-other') return !mine;
       if (kind === 'blind-swap') return true;
-      if (kind === 'king') return !state.kingPeeked ? true : mine;
+      if (kind === 'peek-swap') return !state.qPeeked ? true : mine;
     }
     return false;
   }, [state, me.pid, meP, myTurn, iAmGiving, known]);
@@ -178,8 +180,11 @@ export function GameTable({
   const seatPos = (offset: number) => {
     const a = ((90 + (360 * offset) / n) * Math.PI) / 180;
     const sin = Math.sin(a);
-    // clamp the bottom seat (mine) so it never collides with the action bar
-    const top = sin > 0.9 ? `min(${46 + 36 * sin}%, calc(100% - 235px))` : `${46 + 36 * sin}%`;
+    // clamp seats so the top plate and the bottom hand always stay on screen
+    const pct = 46 + 34 * sin;
+    const top = sin > 0.9
+      ? `min(${pct}%, calc(100% - 245px))` // my seat: clear of the action bar
+      : `clamp(128px, ${pct}%, calc(100% - 245px))`;
     return { left: `${50 + 41 * Math.cos(a)}%`, top, topHalf: sin < 0.25 };
   };
 
@@ -215,11 +220,11 @@ export function GameTable({
     if (kk === 'peek-own') hint = <>✨ <b>peek</b>: tap one of your own cards to look at it</>;
     if (kk === 'peek-other') hint = <>✨ <b>spy</b>: tap someone else&apos;s card to look at it</>;
     if (kk === 'blind-swap') hint = <>✨ <b>blind swap</b>: tap one of yours + one of theirs</>;
-    if (kk === 'king') hint = !state.kingPeeked
-      ? <>👑 <b>king</b>: tap any card to peek at it</>
-      : <>👑 now swap it with one of your cards — or skip</>;
-  } else if (state.phase === 'play' && turnPlayer) {
-    hint = <>{turnPlayer.name} is thinking… <span className="opacity-60">(psst — you can snap matching cards anytime!)</span></>;
+    if (kk === 'peek-swap') hint = !state.qPeeked
+      ? <>👸 <b>queen</b>: tap any card to peek at it</>
+      : <>👸 now swap it with one of your cards — or keep yours</>;
+  } else if (state.phase === 'play' && turnPlayer && turnPlayer.pid !== me.pid) {
+    hint = <>{turnPlayer.name} is thinking… <span className="opacity-60">psst — you can snap matching cards anytime!</span></>;
   }
 
   return (
@@ -232,7 +237,7 @@ export function GameTable({
           </button>
           <div className="flex-1" />
           <button className="btn btn-small" onClick={() => setShowValues(true)} title="card values">values</button>
-          <button className="btn btn-small btn-round" onClick={onToggleMute} title="sound">{muted ? '🔇' : '🔊'}</button>
+          <AudioControl />
           <button className="btn btn-small btn-round" onClick={onTutorial} title="how to play">?</button>
           <button className="btn btn-small" onClick={onLeave}>leave</button>
         </div>
@@ -276,14 +281,12 @@ export function GameTable({
           <div className="pile" onClick={clickDiscard}
             style={{ cursor: myTurn && (state.stage === 'draw' || state.stage === 'decide') ? 'pointer' : 'default', width: 60, height: 84 }}>
             <div className="pile-under" style={{ width: 60, height: 84 }} />
-            <AnimatePresence>
-              {state.discard.map((c, i) => (
-                <motion.div key={c.id} style={{ position: 'absolute', inset: 0, rotate: hashRot(c.id), zIndex: i }}>
-                  <PlayingCard id={c.id} card={c} size="md" />
-                </motion.div>
-              ))}
-            </AnimatePresence>
-            {discardTop && state.phase === 'play' && <div key={snapRingKey} className="snap-ring" style={{ zIndex: 9 }} />}
+            {state.discard.map((c, i) => (
+              <div key={c.id} style={{ position: 'absolute', inset: 0, rotate: `${hashRot(c.id)}deg`, zIndex: i }}>
+                <PlayingCard id={c.id} card={c} size="md" />
+              </div>
+            ))}
+            {discardTop && state.phase === 'play' && !state.snapLocked && <div key={snapRingKey} className="snap-ring" style={{ zIndex: 9 }} />}
             {burst > 0 && (
               <div className="snap-burst" style={{ position: 'absolute', top: -34, left: '50%', translate: '-50% 0', zIndex: 20, whiteSpace: 'nowrap', fontSize: '1.6rem' }}>
                 SNAP!
@@ -292,22 +295,29 @@ export function GameTable({
             <span className="pile-label">discard</span>
           </div>
 
-          {/* drawn card */}
-          <AnimatePresence>
+          {/* draw slot — always present; the card layout-animates in and out */}
+          <div className="pile" style={{ width: 60, height: 84 }}>
+            <div className="pile-under" style={{ width: 60, height: 84 }} />
             {state.drawn && (
-              <motion.div
-                key={state.drawn.id}
-                initial={{ x: -90, y: 0, scale: 0.7, opacity: 0 }}
-                animate={{ x: 0, y: 0, scale: state.turnPid === me.pid ? 1.15 : 1, opacity: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ type: 'spring', stiffness: 320, damping: 24 }}
-                className="pile"
-              >
-                <PlayingCard id={state.drawn.id} card={faceOf(state.drawn.id) ?? drawnKnown[state.drawn.id] ?? null} size="md" />
-                <span className="pile-label">{turnPlayer?.pid === me.pid ? 'your draw' : `${turnPlayer?.name}'s draw`}</span>
-              </motion.div>
+              <div style={{ position: 'absolute', inset: 0, zIndex: 2, scale: myTurn ? '1.12' : '1' }}>
+                <PlayingCard
+                  id={state.drawn.id}
+                  card={
+                    state.drawn.card // taken from the discard — public
+                    ?? (state.turnPid === me.pid
+                      ? drawnKnown[state.drawn.id] ?? faceOf(state.drawn.id) ?? null
+                      : null) // other players' stock draws stay hidden
+                  }
+                  size="md"
+                />
+              </div>
             )}
-          </AnimatePresence>
+            <span className="pile-label">
+              {state.drawn
+                ? (turnPlayer?.pid === me.pid ? 'your draw!' : `${turnPlayer?.name}'s draw`)
+                : 'draw'}
+            </span>
+          </div>
         </div>
 
         {/* seats */}
@@ -318,11 +328,13 @@ export function GameTable({
           const size: CardSize = isMe ? 'md' : otherSize;
           const cols = Math.max(2, Math.ceil(p.cards.length / 2));
           const plate = (
-            <div className="seat-plate" style={{ position: 'relative' }}>
+            <div style={{ position: 'relative' }}>
               {p.pid === state.caboPid && <span className="cabo-badge">CABO!</span>}
-              <span className="avatar-wrap"><PixelAvatar id={p.avatar} size={isMe ? 34 : 28} /></span>
-              <span className="seat-name">{p.name}{isMe ? ' ✦' : ''}</span>
-              {state.phase === 'peek' && p.peeksLeft === 0 && <span title="ready">✅</span>}
+              <div className="seat-plate">
+                <span className="avatar-wrap"><PixelAvatar id={p.avatar} size={isMe ? 34 : 28} /></span>
+                <span className="seat-name">{p.isBot ? '🤖' : ''}{p.name}{isMe ? ' ✦' : ''}</span>
+                {state.phase === 'peek' && p.peeksLeft === 0 && <span title="ready">✅</span>}
+              </div>
             </div>
           );
           return (
@@ -333,8 +345,7 @@ export function GameTable({
             >
               {pos.topHalf && plate}
               <div className="hand-grid" style={{ ['--cols' as string]: cols }}>
-                <AnimatePresence>
-                  {p.cards.map((cid) => {
+                {p.cards.map((cid) => {
                     const face = faceOf(cid);
                     const target = isTarget(cid, p.pid);
                     const clickable = target || (snapPossible && !face);
@@ -362,7 +373,6 @@ export function GameTable({
                       </div>
                     );
                   })}
-                </AnimatePresence>
                 {p.cards.length === 0 && state.phase === 'play' && (
                   <div className="px-body text-sm opacity-70" style={{ gridColumn: '1 / -1' }}>hand empty! 🎉</div>
                 )}
@@ -389,14 +399,14 @@ export function GameTable({
             )}
             {myTurn && state.stage === 'power' && (
               <button className="btn btn-small" onClick={() => s.emit('skipPower')}>
-                {state.powerKind === 'king' && state.kingPeeked ? 'keep as is' : 'skip power'}
+                {state.powerKind === 'peek-swap' && state.qPeeked ? 'keep mine' : 'skip power'}
               </button>
             )}
           </div>
         </div>
 
         {/* game over */}
-        {state.phase === 'gameOver' && <GameOverPanel state={state} me={me} />}
+        {state.phase === 'gameOver' && <GameOverPanel state={state} me={me} onLeave={onLeave} />}
         {state.phase === 'gameOver' && <Confetti />}
         {showValues && <ValuesPanel onClose={() => setShowValues(false)} />}
       </div>
@@ -426,7 +436,7 @@ export function ValuesPanel({ onClose }: { onClose: () => void }) {
           {VALUE_CHART.map(({ card, value, note }) => (
             <div key={card.id} className="flex flex-col items-center gap-1">
               <PlayingCard id={card.id} noLayout card={card} size="sm" />
-              <span className="font-bold text-base leading-none mt-1"
+              <span className="px-body text-xl leading-none mt-1"
                 style={{ color: card.id === 'v-bk' || card.id === 'v-rk' ? 'var(--pink-deep)' : undefined }}>
                 {value}
               </span>
@@ -434,19 +444,28 @@ export function ValuesPanel({ onClose }: { onClose: () => void }) {
             </div>
           ))}
         </div>
+        <h3 className="font-bold mb-2">powers <span className="opacity-60 text-sm">(toss the drawn card onto the pile)</span></h3>
+        <div className="flex flex-col gap-2 text-sm leading-snug mb-4">
+          <div className="result-row"><b className="px-body text-lg">7·8</b>&nbsp; peek at one of YOUR cards</div>
+          <div className="result-row"><b className="px-body text-lg">9·10</b>&nbsp; spy on someone ELSE&apos;s card</div>
+          <div className="result-row"><b className="px-body text-lg">J</b>&nbsp; blind swap — one of yours ↔ one of theirs</div>
+          <div className="result-row"><b className="px-body text-lg">Q</b>&nbsp; peek ANY card, then swap it with yours if you like</div>
+          <div className="result-row"><b className="px-body text-lg">K</b>&nbsp; no power — black kings are pure poison</div>
+        </div>
+        <h3 className="font-bold mb-2">winning</h3>
         <div className="flex flex-col gap-2 text-sm leading-snug">
           <div className="result-row">📣 after a CABO call, lowest total wins</div>
           <div className="result-row">🤝 tied? the caller loses the tie — then more cards wins — then it&apos;s a true tie</div>
           <div className="result-row">⚡ snap away ALL your cards → instant win</div>
           <div className="result-row">💥 kamikaze: exactly 2 black kings + 2 face cards → instant win</div>
-          <div className="result-row">🐌 wrong snap or too slow → penalty card</div>
+          <div className="result-row">🐌 one snap per discard — wrong card or too late → penalty card</div>
         </div>
       </div>
     </div>
   );
 }
 
-function GameOverPanel({ state, me }: { state: GameState; me: Me }) {
+function GameOverPanel({ state, me, onLeave }: { state: GameState; me: Me; onLeave: () => void }) {
   const s = getSocket();
   const isHost = state.hostPid === me.pid;
   const results = state.roundResults ?? [];
@@ -477,8 +496,8 @@ function GameOverPanel({ state, me }: { state: GameState; me: Me }) {
         {winner && (
           <div className="text-center mb-4">
             <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1, rotate: [0, -4, 4, 0] }}
+              initial={{ scale: 0, rotate: -8 }}
+              animate={{ scale: 1, rotate: 0 }}
               transition={{ type: 'spring', stiffness: 200, damping: 12 }}
               className="inline-flex gap-3"
             >
@@ -520,7 +539,7 @@ function GameOverPanel({ state, me }: { state: GameState; me: Me }) {
                     ))}
                 </div>
                 <div className="text-right">
-                  <div className="font-bold text-lg leading-none">{r.handSum}</div>
+                  <div className="px-body text-2xl leading-none">{r.handSum}</div>
                   <div className="text-xs opacity-70">points</div>
                 </div>
               </div>
@@ -528,7 +547,7 @@ function GameOverPanel({ state, me }: { state: GameState; me: Me }) {
           })}
         </div>
 
-        <div className="flex justify-center gap-2 mt-5">
+        <div className="flex justify-center items-center gap-2 mt-5">
           {isHost ? (
             <button className="btn btn-primary" onClick={() => { sfx.click(); s.emit('start'); }}>
               ↻ play again!
@@ -536,6 +555,7 @@ function GameOverPanel({ state, me }: { state: GameState; me: Me }) {
           ) : (
             <div className="hint-bubble">waiting for the host…</div>
           )}
+          <button className="btn" onClick={() => { sfx.click(); onLeave(); }}>leave</button>
         </div>
       </motion.div>
     </div>

@@ -6,6 +6,7 @@ import { sfx } from '@/lib/sounds';
 import { PixelAvatar, AVATAR_IDS, avatarName } from './PixelAvatar';
 import { PixelSprite, CLOUD, SPARKLE } from './PixelSprite';
 import { PlayingCard } from './PlayingCard';
+import { AudioControl } from './AudioControl';
 
 export function PixelClouds() {
   return (
@@ -46,32 +47,43 @@ export function Home({
     localStorage.setItem('cabo-avatar', avatar);
   };
 
-  const create = () => {
-    if (!name.trim()) return setError('pick a name first!');
+  // if the server can't be reached (e.g. a host without websocket support),
+  // fail loudly instead of hanging on a disabled button
+  const attempt = (event: string, payload: Record<string, string | number>) => {
     persist();
     setBusy(true);
-    getSocket().emit('create', { name: name.trim(), avatar }, (res: { ok?: boolean; error?: string; pid?: string; token?: string; code?: string }) => {
+    let done = false;
+    const timeout = setTimeout(() => {
+      if (done) return;
+      done = true;
+      setBusy(false);
+      setError("can't reach the game server 😢 (it needs a Node host, not serverless)");
+    }, 6000);
+    getSocket().emit(event, payload, (res: { ok?: boolean; error?: string; pid?: string; token?: string; code?: string }) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timeout);
       setBusy(false);
       if (res.ok) { sfx.click(); onJoined({ pid: res.pid!, token: res.token!, code: res.code! }); }
       else setError(res.error || 'something went wrong');
     });
   };
 
+  const create = () => {
+    if (!name.trim()) return setError('pick a name first!');
+    attempt('create', { name: name.trim(), avatar });
+  };
+
   const join = () => {
     if (!name.trim()) return setError('pick a name first!');
     if (code.trim().length !== 4) return setError('codes are 4 letters!');
-    persist();
-    setBusy(true);
-    getSocket().emit('join', { code: code.trim().toUpperCase(), name: name.trim(), avatar }, (res: { ok?: boolean; error?: string; pid?: string; token?: string; code?: string }) => {
-      setBusy(false);
-      if (res.ok) { sfx.click(); onJoined({ pid: res.pid!, token: res.token!, code: res.code! }); }
-      else setError(res.error || 'could not join');
-    });
+    attempt('join', { code: code.trim().toUpperCase(), name: name.trim(), avatar });
   };
 
   return (
     <div className="h-dvh flex flex-col items-center justify-center gap-5 px-4 relative overflow-hidden">
       <PixelClouds />
+      <div style={{ position: 'fixed', top: 12, right: 14, zIndex: 30 }}><AudioControl /></div>
 
       {/* floating deco cards */}
       <div className="deco float-bob-smooth" style={{ left: '9%', top: '38%', rotate: '-10deg', position: 'fixed' }}>

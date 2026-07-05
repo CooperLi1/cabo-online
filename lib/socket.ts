@@ -5,7 +5,13 @@ let socket: Socket | null = null;
 
 export function getSocket(): Socket {
   if (!socket) {
-    socket = io({ transports: ['websocket', 'polling'] });
+    // same-origin by default; set NEXT_PUBLIC_SOCKET_URL to run the game
+    // server on a different host than the UI (e.g. UI on Vercel, game
+    // server on Railway/Render/Fly)
+    const url = process.env.NEXT_PUBLIC_SOCKET_URL;
+    socket = url
+      ? io(url, { transports: ['websocket', 'polling'] })
+      : io({ transports: ['websocket', 'polling'] });
     // report round-trip time so the server can latency-compensate snap races
     const probe = () => {
       if (!socket || !socket.connected) return;

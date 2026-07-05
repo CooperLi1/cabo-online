@@ -15,7 +15,11 @@ const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
   const httpServer = createServer((req, res) => handle(req, res));
-  const io = new Server(httpServer, { serveClient: false });
+  const io = new Server(httpServer, {
+    serveClient: false,
+    // allow a split deployment where the UI lives on another origin
+    cors: { origin: process.env.CORS_ORIGIN || '*' },
+  });
 
   const emitFactory = (code) => ({
     toRoom: (event, payload) => io.to(code).emit(event, payload),
@@ -41,9 +45,10 @@ app.prepare().then(() => {
       socket.join(room.code);
     };
 
-    socket.on('create', ({ name, avatar }, cb) => {
+    socket.on('create', ({ name, avatar, turnMs }, cb) => {
       const room = createRoom(emitFactory);
       const player = room.addPlayer({ name, avatar });
+      if (typeof turnMs === 'number') room.setTurnMs(player, turnMs);
       bind(room, player);
       cb({ ok: true, code: room.code, token: player.token, pid: player.pid });
       room.broadcast();
@@ -96,6 +101,9 @@ app.prepare().then(() => {
       skipPower: (room, p) => room.skipPower(p),
       callCabo: (room, p) => room.callCabo(p),
       give: (room, p, d) => room.giveCard(p, d.cardId),
+      addBot: (room, p, d) => room.addBot(p, d.level),
+      removeBot: (room, p, d) => room.removeBot(p, d.pid),
+      setTurnMs: (room, p, d) => room.setTurnMs(p, d.turnMs),
     };
     for (const [name, fn] of Object.entries(acts)) {
       socket.on(name, (data) => {
@@ -107,7 +115,8 @@ app.prepare().then(() => {
     socket.on('snap', (data) => {
       const { room, player } = ctx();
       if (room && player && data && data.cardId) {
-        room.snap(player, data.cardId, socket.data.rtt);
+        room.snap(player, data.cardId, socket.data.rtt,
+          typeof data.reaction === 'number' ? data.reaction : null);
       }
     });
 
