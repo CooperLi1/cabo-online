@@ -11,7 +11,6 @@ export interface PlayerState {
   name: string;
   avatar: string;
   connected: boolean;
-  score: number;
   cards: string[]; // card ids only — values stay secret on the server
   peeksLeft: number;
   isTurn: boolean;
@@ -20,12 +19,10 @@ export interface PlayerState {
 export interface RoundResult {
   pid: string;
   handSum: number;
-  pts: number;
-  total: number;
   isCaller: boolean;
-  penalty: boolean;
-  safe: boolean;
-  luckyReset: boolean;
+  kamikaze: boolean;
+  emptied: boolean;
+  caboWon: boolean;
 }
 
 export interface Fx {
@@ -44,12 +41,15 @@ export interface Fx {
   power?: string | null;
   top?: CardInfo;
   shown?: CardInfo;
+  slow?: boolean;
+  kamikaze?: boolean;
+  emptied?: boolean;
   round?: number;
 }
 
 export interface GameState {
   code: string;
-  phase: 'lobby' | 'peek' | 'play' | 'roundEnd' | 'gameOver';
+  phase: 'lobby' | 'peek' | 'play' | 'gameOver';
   round: number;
   hostPid: string | null;
   players: PlayerState[];
@@ -67,7 +67,7 @@ export interface GameState {
   reveal: Record<string, CardInfo[]> | null;
   roundResults: RoundResult[] | null;
   winnerPid: string | null;
-  fx: Fx | null;
+  fxs: Fx[];
 }
 
 export interface PrivateMsg {
@@ -76,9 +76,13 @@ export interface PrivateMsg {
   ownerPid?: string;
 }
 
+export function isRed(c: { s: string }): boolean {
+  return c.s === '♥' || c.s === '♦';
+}
+
 export function cardValue(c: { r: Rank; s: string }): number {
   if (c.r === 'X') return 0;
-  if (c.r === 'K') return c.s === '♥' || c.s === '♦' ? -1 : 13;
+  if (c.r === 'K') return isRed(c) ? -1 : 25;
   if (c.r === 'Q') return 12;
   if (c.r === 'J') return 11;
   if (c.r === 'A') return 1;
