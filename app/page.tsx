@@ -147,11 +147,20 @@ export default function Page() {
 
   useEffect(() => { meRef.current = me; }, [me]);
 
-  // background music starts on the first interaction (browser autoplay rules)
+  // Browsers require a user gesture before WebAudio can play. Keep this
+  // listener active because some gestures unlock audio where pointerdown does not.
   useEffect(() => {
-    const kick = () => { startMusic(); document.removeEventListener('pointerdown', kick); };
-    document.addEventListener('pointerdown', kick);
-    return () => document.removeEventListener('pointerdown', kick);
+    const kick = () => { startMusic(); };
+    document.addEventListener('pointerdown', kick, { capture: true });
+    document.addEventListener('click', kick, { capture: true });
+    document.addEventListener('keydown', kick, { capture: true });
+    document.addEventListener('touchend', kick, { capture: true });
+    return () => {
+      document.removeEventListener('pointerdown', kick, { capture: true });
+      document.removeEventListener('click', kick, { capture: true });
+      document.removeEventListener('keydown', kick, { capture: true });
+      document.removeEventListener('touchend', kick, { capture: true });
+    };
   }, []);
 
   useEffect(() => {
