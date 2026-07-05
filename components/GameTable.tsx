@@ -7,7 +7,7 @@ import { getSocket } from '@/lib/socket';
 import { sfx } from '@/lib/sounds';
 import { PixelAvatar } from './PixelAvatar';
 import { PlayingCard, type CardSize } from './PlayingCard';
-import { PixelSprite, EYE, LIGHTNING } from './PixelSprite';
+import { PixelSprite, EYE } from './PixelSprite';
 
 function hashRot(id: string, spread = 8) {
   let h = 0;
@@ -41,6 +41,7 @@ export function GameTable({
 
   const [blindSel, setBlindSel] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
+  const [showValues, setShowValues] = useState(false);
   const [snapRingKey, setSnapRingKey] = useState(0);
   const [burst, setBurst] = useState(0);
   const lastEpoch = useRef(state.snapEpoch);
@@ -229,8 +230,8 @@ export function GameTable({
           <button className="chip chip-code" onClick={copyCode} title="copy invite link">
             {copied ? 'copied!' : state.code}
           </button>
-          <span className="chip">round {state.round}</span>
           <div className="flex-1" />
+          <button className="btn btn-small" onClick={() => setShowValues(true)} title="card values">values</button>
           <button className="btn btn-small btn-round" onClick={onToggleMute} title="sound">{muted ? '🔇' : '🔊'}</button>
           <button className="btn btn-small btn-round" onClick={onTutorial} title="how to play">?</button>
           <button className="btn btn-small" onClick={onLeave}>leave</button>
@@ -302,7 +303,7 @@ export function GameTable({
                 transition={{ type: 'spring', stiffness: 320, damping: 24 }}
                 className="pile"
               >
-                <PlayingCard id={state.drawn.id} card={faceOf(state.drawn.id)} size="md" />
+                <PlayingCard id={state.drawn.id} card={faceOf(state.drawn.id) ?? drawnKnown[state.drawn.id] ?? null} size="md" />
                 <span className="pile-label">{turnPlayer?.pid === me.pid ? 'your draw' : `${turnPlayer?.name}'s draw`}</span>
               </motion.div>
             )}
@@ -321,7 +322,6 @@ export function GameTable({
               {p.pid === state.caboPid && <span className="cabo-badge">CABO!</span>}
               <span className="avatar-wrap"><PixelAvatar id={p.avatar} size={isMe ? 34 : 28} /></span>
               <span className="seat-name">{p.name}{isMe ? ' ✦' : ''}</span>
-              <span className="seat-score" title="total score">{p.score}</span>
               {state.phase === 'peek' && p.peeksLeft === 0 && <span title="ready">✅</span>}
             </div>
           );
@@ -374,7 +374,7 @@ export function GameTable({
 
         {/* action bar */}
         <div className="action-bar">
-          {timerFrac !== null && state.phase !== 'roundEnd' && state.phase !== 'gameOver' && (
+          {timerFrac !== null && state.phase !== 'gameOver' && (
             <div className="timer-bar"><div className="timer-fill" style={{ transform: `scaleX(${timerFrac})` }} /></div>
           )}
           {hint && <div className="hint-bubble">{hint}</div>}
@@ -395,23 +395,76 @@ export function GameTable({
           </div>
         </div>
 
-        {/* round end / game over */}
-        {(state.phase === 'roundEnd' || state.phase === 'gameOver') && (
-          <RoundEndPanel state={state} me={me} />
-        )}
+        {/* game over */}
+        {state.phase === 'gameOver' && <GameOverPanel state={state} me={me} />}
         {state.phase === 'gameOver' && <Confetti />}
+        {showValues && <ValuesPanel onClose={() => setShowValues(false)} />}
       </div>
     </LayoutGroup>
   );
 }
 
-function RoundEndPanel({ state, me }: { state: GameState; me: Me }) {
+const VALUE_CHART: { card: CardInfo; value: string; note: string }[] = [
+  { card: { id: 'v-x', r: 'X', s: '★' }, value: '0', note: 'joker' },
+  { card: { id: 'v-a', r: 'A', s: '♣' }, value: '1', note: 'ace' },
+  { card: { id: 'v-7', r: '7', s: '♦' }, value: '2–10', note: 'face value' },
+  { card: { id: 'v-j', r: 'J', s: '♠' }, value: '11', note: 'jack' },
+  { card: { id: 'v-q', r: 'Q', s: '♥' }, value: '12', note: 'queen' },
+  { card: { id: 'v-rk', r: 'K', s: '♥' }, value: '−1', note: 'red king' },
+  { card: { id: 'v-bk', r: 'K', s: '♠' }, value: '25', note: 'black king' },
+];
+
+export function ValuesPanel({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 470 }}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">card values</h2>
+          <button className="btn btn-small btn-round" onClick={onClose}>✕</button>
+        </div>
+        <div className="grid grid-cols-7 gap-1 justify-items-center mb-5">
+          {VALUE_CHART.map(({ card, value, note }) => (
+            <div key={card.id} className="flex flex-col items-center gap-1">
+              <PlayingCard id={card.id} noLayout card={card} size="sm" />
+              <span className="font-bold text-base leading-none mt-1"
+                style={{ color: card.id === 'v-bk' || card.id === 'v-rk' ? 'var(--pink-deep)' : undefined }}>
+                {value}
+              </span>
+              <span className="text-[0.62rem] opacity-60 leading-none text-center">{note}</span>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-col gap-2 text-sm leading-snug">
+          <div className="result-row">📣 after a CABO call, lowest total wins</div>
+          <div className="result-row">🤝 tied? the caller loses the tie — then more cards wins — then it&apos;s a true tie</div>
+          <div className="result-row">⚡ snap away ALL your cards → instant win</div>
+          <div className="result-row">💥 kamikaze: exactly 2 black kings + 2 face cards → instant win</div>
+          <div className="result-row">🐌 wrong snap or too slow → penalty card</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GameOverPanel({ state, me }: { state: GameState; me: Me }) {
   const s = getSocket();
   const isHost = state.hostPid === me.pid;
   const results = state.roundResults ?? [];
-  const sorted = [...results].sort((a, b) => a.pts - b.pts);
+  const winnerPids = state.winnerPids?.length ? state.winnerPids : (state.winnerPid ? [state.winnerPid] : []);
+  const isTie = winnerPids.length > 1;
+  const sorted = [...results].sort((a, b) => {
+    const aw = winnerPids.includes(a.pid) ? 0 : 1;
+    const bw = winnerPids.includes(b.pid) ? 0 : 1;
+    return (aw - bw) || (a.handSum - b.handSum);
+  });
   const winner = state.winnerPid ? state.players.find((p) => p.pid === state.winnerPid) : null;
+  const winRow = results.find((r) => r.pid === state.winnerPid);
   const playerOf = (pid: string) => state.players.find((p) => p.pid === pid);
+  const winReason = winRow?.kamikaze ? '💥 KAMIKAZE — 2 black kings + 2 faces!'
+    : winRow?.emptied ? '⚡ snapped away every card!'
+      : isTie ? 'same total, same card count — shared crown!'
+        : winRow?.caboWon ? '📣 called cabo and stuck the landing'
+          : 'lowest hand takes it';
 
   return (
     <div className="overlay" style={{ background: 'rgba(69,57,80,0.25)' }}>
@@ -421,21 +474,26 @@ function RoundEndPanel({ state, me }: { state: GameState; me: Me }) {
         animate={{ y: 0, opacity: 1, scale: 1 }}
         transition={{ type: 'spring', stiffness: 260, damping: 22 }}
       >
-        {state.phase === 'gameOver' && winner ? (
+        {winner && (
           <div className="text-center mb-4">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1, rotate: [0, -4, 4, 0] }}
               transition={{ type: 'spring', stiffness: 200, damping: 12 }}
-              className="inline-block"
+              className="inline-flex gap-3"
             >
-              <PixelAvatar id={winner.avatar} size={84} className="float-bob" />
+              {winnerPids.map((pid) => {
+                const w = playerOf(pid);
+                return w ? <PixelAvatar key={pid} id={w.avatar} size={84} className="float-bob" /> : null;
+              })}
             </motion.div>
-            <h2 className="text-3xl font-bold mt-2">👑 {winner.name} wins!</h2>
-            <p className="tagline">lowest score takes the crown</p>
+            <h2 className="text-3xl font-bold mt-2">
+              👑 {isTie
+                ? `it's a tie — ${winnerPids.map((pid) => playerOf(pid)?.name).filter(Boolean).join(' & ')}!`
+                : `${winner.name} wins!`}
+            </h2>
+            <p className="tagline">{winReason}</p>
           </div>
-        ) : (
-          <h2 className="text-2xl font-bold text-center mb-4">round {state.round} — reveal!</h2>
         )}
 
         <div className="flex flex-col gap-2">
@@ -444,23 +502,26 @@ function RoundEndPanel({ state, me }: { state: GameState; me: Me }) {
             if (!p) return null;
             const cards = state.reveal?.[r.pid] ?? [];
             return (
-              <div key={r.pid} className={`result-row ${state.winnerPid === r.pid ? 'winner' : ''}`}>
+              <div key={r.pid} className={`result-row ${winnerPids.includes(r.pid) ? 'winner' : ''}`}>
                 <PixelAvatar id={p.avatar} size={34} />
                 <div className="flex flex-col min-w-0" style={{ width: 92 }}>
                   <span className="font-bold truncate text-sm">{p.name}</span>
                   <span className="text-xs opacity-70">
-                    {r.isCaller && (r.safe ? '📣 cabo ✓' : '📣 cabo ✗ +10')}
-                    {r.luckyReset && ' 🍀 100→50!'}
+                    {r.isCaller && '📣 cabo'}
+                    {r.kamikaze && ' 💥'}
+                    {r.emptied && ' ⚡'}
                   </span>
                 </div>
                 <div className="flex gap-1 flex-wrap flex-1">
-                  {cards.map((c) => (
-                    <PlayingCard key={c.id} id={`rv-${c.id}`} noLayout card={c} size="xs" />
-                  ))}
+                  {cards.length === 0
+                    ? <span className="px-body opacity-70">no cards!</span>
+                    : cards.map((c) => (
+                      <PlayingCard key={c.id} id={`rv-${c.id}`} noLayout card={c} size="xs" />
+                    ))}
                 </div>
                 <div className="text-right">
-                  <div className="font-bold text-lg leading-none">{r.pts > 0 ? `+${r.pts}` : r.pts}</div>
-                  <div className="text-xs opacity-70">total {r.total}</div>
+                  <div className="font-bold text-lg leading-none">{r.handSum}</div>
+                  <div className="text-xs opacity-70">points</div>
                 </div>
               </div>
             );
@@ -470,7 +531,7 @@ function RoundEndPanel({ state, me }: { state: GameState; me: Me }) {
         <div className="flex justify-center gap-2 mt-5">
           {isHost ? (
             <button className="btn btn-primary" onClick={() => { sfx.click(); s.emit('start'); }}>
-              {state.phase === 'gameOver' ? '↻ play again!' : '➜ next round'}
+              ↻ play again!
             </button>
           ) : (
             <div className="hint-bubble">waiting for the host…</div>

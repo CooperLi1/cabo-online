@@ -136,7 +136,7 @@ export default function Page() {
         toast(`${name(fx.pid)} ran out of cards!`);
         break;
       case 'game-over':
-        if (fx.pid === myPid) sfx.win(); else sfx.lose();
+        if (myPid && (fx.pids ?? [fx.pid]).includes(myPid)) sfx.win(); else sfx.lose();
         break;
     }
   }, [toast, remember]);

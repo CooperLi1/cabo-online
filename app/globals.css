@@ -212,13 +212,16 @@ h1, h2, h3, .font-round { font-family: var(--font-px); }
 .pcard-pip { margin-top: 20%; }
 .pcard-value {
   position: absolute;
-  right: 7%;
-  bottom: 3%;
-  font-size: calc(var(--w, 60px) * 0.22);
+  right: 8%;
+  bottom: 4%;
+  font-size: calc(var(--w, 60px) * 0.2);
   font-weight: 700;
   font-family: var(--font-px);
-  opacity: 0.55;
+  opacity: 0.5;
+  line-height: 1;
 }
+/* too cramped on small cards */
+.pcard-xs .pcard-value, .pcard-sm .pcard-value { display: none; }
 .pcard-back {
   transform: rotateY(180deg);
   background:

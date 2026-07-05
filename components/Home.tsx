@@ -96,43 +96,19 @@ export function Home({
         transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.08 }}
         className="flex flex-col items-center gap-4 w-full max-w-sm"
       >
-        {/* avatar picker — arrow carousel */}
-        <div className="flex items-center gap-4">
-          <button
-            className="btn btn-round"
-            aria-label="previous character"
-            onClick={() => {
-              const i = AVATAR_IDS.indexOf(avatar);
-              setAvatar(AVATAR_IDS[(i - 1 + AVATAR_IDS.length) % AVATAR_IDS.length]);
-              sfx.click();
-            }}
-          >
-            ◀
-          </button>
-          <motion.div
-            key={avatar}
-            initial={{ scale: 0.7, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 20 }}
-            className="avatar-pick picked flex flex-col items-center gap-1"
-            style={{ width: 110, cursor: 'default' }}
-          >
-            <div className="float-bob-smooth">
-              <PixelAvatar id={avatar} size={72} />
-            </div>
-            <span className="text-sm font-bold opacity-70">{avatarName(avatar)}</span>
-          </motion.div>
-          <button
-            className="btn btn-round"
-            aria-label="next character"
-            onClick={() => {
-              const i = AVATAR_IDS.indexOf(avatar);
-              setAvatar(AVATAR_IDS[(i + 1) % AVATAR_IDS.length]);
-              sfx.click();
-            }}
-          >
-            ▶
-          </button>
+        {/* avatar picker */}
+        <div className="grid grid-cols-5 gap-2">
+          {AVATAR_IDS.map((id) => (
+            <button
+              key={id}
+              className={`avatar-pick ${avatar === id ? 'picked' : ''}`}
+              onClick={() => { setAvatar(id); sfx.click(); }}
+              aria-label={avatarName(id)}
+              title={avatarName(id)}
+            >
+              <PixelAvatar id={id} size={40} />
+            </button>
+          ))}
         </div>
 
         <input

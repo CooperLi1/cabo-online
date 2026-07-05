@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PlayingCard } from './PlayingCard';
 import { PixelAvatar } from './PixelAvatar';
-import { PixelSprite, EYE, CROWN, LIGHTNING, SPARKLE } from './PixelSprite';
+import { PixelSprite, EYE, CROWN, LIGHTNING } from './PixelSprite';
 import { sfx } from '@/lib/sounds';
 
 // loops through phases with given durations (ms)
@@ -74,6 +74,47 @@ function GoalScene() {
             transition={spring}
           >
             total: 6 ✦
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Stage>
+  );
+}
+
+// ---------- scene: card values ----------
+function ValuesScene() {
+  const phase = useLoop([700, 700, 700, 700, 700, 700, 3200]);
+  const cards: { r: string; s: string; note: string }[] = [
+    { r: 'X', s: '★', note: '0' },
+    { r: 'A', s: '♣', note: '1' },
+    { r: 'J', s: '♠', note: '11' },
+    { r: 'Q', s: '♥', note: '12' },
+    { r: 'K', s: '♥', note: '−1 !' },
+    { r: 'K', s: '♠', note: '25 !!' },
+  ];
+  const shown = phase >= 6 ? 6 : phase + 1;
+  return (
+    <Stage>
+      {cards.map((c, i) => (
+        <div key={i} className="tut-abs" style={{ left: 28 + i * 66, top: 70 }}>
+          <PlayingCard id={`v${i}`} noLayout size="sm"
+            card={i < shown ? { id: `v${i}`, r: c.r as 'A', s: c.s } : null} />
+          <AnimatePresence>
+            {i < shown && (
+              <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+                className="text-center font-bold mt-1"
+                style={{ color: c.note.includes('!') ? 'var(--pink-deep)' : undefined }}>
+                {c.note}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      ))}
+      <AnimatePresence>
+        {phase >= 6 && (
+          <motion.div className="tut-abs bubble" style={{ left: 70, top: 180, fontSize: '0.85rem' }}
+            initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} transition={spring}>
+            2–10 are just their number · numbers low = happy
           </motion.div>
         )}
       </AnimatePresence>
@@ -208,10 +249,10 @@ function TurnScene() {
 function PowersScene() {
   const phase = useLoop([2600, 2600, 2600, 2600]);
   const powers = [
-    { ranks: ['7', '8'], icon: <PixelSprite grid={EYE} color="#453950" color2="#fffdfa" size={44} />, label: 'peek at one of YOUR cards' },
-    { ranks: ['9', '10'], icon: <PixelSprite grid={EYE} color="#7a63b8" color2="#fffdfa" size={44} />, label: "spy on someone ELSE's card" },
-    { ranks: ['J', 'Q'], icon: <span style={{ fontSize: 34 }}>🔀</span>, label: 'blind-swap with another player' },
-    { ranks: ['K'], icon: <PixelSprite grid={CROWN} color="#f5c94f" size={48} />, label: 'peek ANY card, then swap it if you like' },
+    { ranks: ['7', '8'], icon: <PixelSprite grid={EYE} color="#453950" color2="#fffdfa" size={44} />, label: 'tap one of YOUR cards to peek at it' },
+    { ranks: ['9', '10'], icon: <PixelSprite grid={EYE} color="#7a63b8" color2="#fffdfa" size={44} />, label: "tap someone ELSE's card to spy on it" },
+    { ranks: ['J', 'Q'], icon: <span style={{ fontSize: 34 }}>🔀</span>, label: 'blind-swap: tap one of yours + one of theirs' },
+    { ranks: ['K'], icon: <PixelSprite grid={CROWN} color="#f5c94f" size={48} />, label: 'BLACK king only: peek ANY card, then swap it with yours if you like' },
   ];
   const p = powers[phase];
   return (
@@ -367,7 +408,7 @@ function CaboScene() {
         {phase === 4 && (
           <motion.div className="tut-abs bubble" style={{ left: 220, top: 170, maxWidth: 200, textAlign: 'center', fontSize: '0.85rem' }}
             initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-            lowest total? you score 0! otherwise +10 penalty…
+            cards flip — lowest total wins! (ties beat the caller)
           </motion.div>
         )}
       </AnimatePresence>
@@ -380,32 +421,37 @@ function CaboScene() {
 const STEPS = [
   {
     title: 'the goal 🌟',
-    caption: 'everyone gets 4 secret cards. lowest total wins! red kings are −1, jokers are 0, aces are 1.',
+    caption: 'everyone gets 4 secret cards, laid out in front of them. keep your total LOW — the lowest hand wins.',
     scene: GoalScene,
   },
   {
+    title: 'card values 🔢',
+    caption: 'jokers 0 · aces 1 · jack 11 · queen 12 · RED kings −1 (treasure!) · BLACK kings 25 (poison!)',
+    scene: ValuesScene,
+  },
+  {
     title: 'peek at two 👀',
-    caption: 'at the start you may peek at TWO of your cards. memorize them — they flip back down!',
+    caption: 'at the start, tap TWO of your cards to peek. memorize them — they flip back down and stay hidden!',
     scene: PeekScene,
   },
   {
     title: 'your turn 🎴',
-    caption: 'draw a card, then either swap it with one of yours… or toss it straight onto the discard pile.',
+    caption: 'tap the deck (or the discard pile) to draw. then tap one of your cards to swap — the new card lands face-down in that same spot — or tap the discard pile to toss the draw away.',
     scene: TurnScene,
   },
   {
     title: 'power cards ✨',
-    caption: 'toss a 7–K straight to the pile and its power activates:',
+    caption: 'toss a power card straight onto the pile and it activates:',
     scene: PowersScene,
   },
   {
     title: 'SNAP! ⚡',
-    caption: 'anytime a card matches the top of the discard, race to tap a matching card — yours or theirs! snap someone else\'s and you give them one of yours. wrong guess = penalty card.',
+    caption: 'if a card matches the TOP of the discard pile, tap it to snap — anyone\'s cards, anytime, fastest tap wins! snap someone else\'s card and you hand them one of yours. wrong card OR too slow = penalty card.',
     scene: SnapScene,
   },
   {
-    title: 'call cabo 📣',
-    caption: 'think you\'re lowest? call CABO instead of drawing. everyone else gets one last turn, then all cards flip! first to 100 points ends the game.',
+    title: 'winning 📣',
+    caption: 'think you\'re lowest? call CABO — everyone else gets one last turn, then all cards flip and lowest total wins (ties beat the caller). snap away ALL your cards to win instantly. or go kamikaze: end with 2 black kings + 2 face cards for a surprise win!',
     scene: CaboScene,
   },
 ];

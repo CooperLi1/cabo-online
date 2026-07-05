@@ -44,6 +44,8 @@ export interface Fx {
   slow?: boolean;
   kamikaze?: boolean;
   emptied?: boolean;
+  tie?: boolean;
+  pids?: string[];
   round?: number;
 }
 
@@ -67,6 +69,7 @@ export interface GameState {
   reveal: Record<string, CardInfo[]> | null;
   roundResults: RoundResult[] | null;
   winnerPid: string | null;
+  winnerPids: string[];
   fxs: Fx[];
 }
 
