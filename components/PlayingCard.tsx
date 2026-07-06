@@ -21,6 +21,7 @@ export const PlayingCard = memo(function PlayingCard({
   card,
   size = 'md',
   onClick,
+  onSnapDown,
   selectable,
   selected,
   seen,
@@ -28,12 +29,14 @@ export const PlayingCard = memo(function PlayingCard({
   wobble,
   popKey,
   noLayout,
+  layoutKey,
   title,
 }: {
   id: string;
   card?: CardInfo | null; // known face → face up; null/undefined → face down
   size?: CardSize;
   onClick?: () => void;
+  onSnapDown?: () => void; // fires on pointerdown — snaps feel instant
   selectable?: boolean;
   selected?: boolean;
   seen?: boolean; // you peeked this card earlier (sparkle hint, value NOT shown)
@@ -41,6 +44,7 @@ export const PlayingCard = memo(function PlayingCard({
   wobble?: boolean;
   popKey?: number;
   noLayout?: boolean;
+  layoutKey?: string; // layout re-measurement only happens when this changes
   title?: string;
 }) {
   const faceUp = !!card;
@@ -51,6 +55,7 @@ export const PlayingCard = memo(function PlayingCard({
     <motion.div
       layoutId={noLayout ? undefined : `card-${id}`}
       layout={!noLayout}
+      layoutDependency={noLayout ? undefined : layoutKey}
       transition={{ type: 'spring', stiffness: 400, damping: 32 }}
       className={[
         'pcard',
@@ -62,7 +67,8 @@ export const PlayingCard = memo(function PlayingCard({
         popKey ? `pcard-pop-${popKey % 2 ? 'a' : 'b'}` : '',
       ].join(' ')}
       onClick={onClick}
-      whileTap={onClick ? { scale: 0.92 } : undefined}
+      onPointerDown={onSnapDown ? (e) => { if (e.button === 0) onSnapDown(); } : undefined}
+      whileTap={onClick || onSnapDown ? { scale: 0.92 } : undefined}
       title={title}
       data-cardid={id}
     >

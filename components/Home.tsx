@@ -81,7 +81,8 @@ export function Home({
   };
 
   return (
-    <div className="h-dvh flex flex-col items-center justify-center gap-5 px-4 relative overflow-hidden">
+    <div className="h-dvh overflow-y-auto overflow-x-hidden relative">
+      <div className="min-h-full flex flex-col items-center justify-center gap-5 px-4 py-6">
       <PixelClouds />
       <div style={{ position: 'fixed', top: 12, right: 14, zIndex: 30 }}><AudioControl /></div>
 
@@ -154,6 +155,7 @@ export function Home({
           ✦ learn to play
         </button>
       </motion.div>
+      </div>
     </div>
   );
 }

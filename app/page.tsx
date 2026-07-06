@@ -169,8 +169,11 @@ export default function Page() {
 
   useEffect(() => {
     const s = getSocket();
-    const onState = (st: GameState) => {
-      if (!activeRoomRef.current || st.code !== activeRoomRef.current) return;
+    // 12-player bot games can burst several state messages in a few ms;
+    // coalesce them so React renders at most once per animation frame
+    let pendingState: GameState | null = null;
+    let flushScheduled = false;
+    const applyState = (st: GameState) => {
       setState(st);
       // peek phase over → initial peeks always flip back down, even if the
       // round-start fx slid out of the fx window
@@ -188,6 +191,20 @@ export default function Page() {
           handleFx(fx, st);
         }
       }
+    };
+    const onState = (st: GameState) => {
+      if (!activeRoomRef.current || st.code !== activeRoomRef.current) return;
+      pendingState = st;
+      if (flushScheduled) return;
+      flushScheduled = true;
+      requestAnimationFrame(() => {
+        flushScheduled = false;
+        if (pendingState) {
+          const next = pendingState;
+          pendingState = null;
+          applyState(next);
+        }
+      });
     };
     const onPrivate = (msg: PrivateMsg) => {
       if (!activeRoomRef.current) return;

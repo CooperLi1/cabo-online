@@ -29,6 +29,7 @@
   --font-px-body: var(--font-pixel-body), "VT323", monospace;
 
   --shadow-ink: rgba(69, 57, 80, 0.28);
+  --seat-top-min: 128px;
 }
 
 * { -webkit-tap-highlight-color: transparent; }
@@ -747,12 +748,6 @@ h1, h2, h3, .font-round { font-family: var(--font-px); }
   100% { transform: scale(1) rotate(0); }
 }
 
-@media (max-width: 700px) {
-  .table-felt { width: 94vw; height: 60vh; }
-  .piles { gap: 16px; }
-  .toast { max-width: 200px; font-size: 0.76rem; }
-}
-
 /* ---------- audio popover ---------- */
 
 .audio-pop {
@@ -826,3 +821,65 @@ h1, h2, h3, .font-round { font-family: var(--font-px); }
   filter: drop-shadow(0 2px 0 var(--shadow-ink));
 }
 .turn-num::-webkit-inner-spin-button { opacity: 1; }
+
+/* ---------- pile sizing (shrinks on mobile) ---------- */
+.piles { --pw: 60px; --ph: 84px; }
+.pile-slot { width: var(--pw); height: var(--ph); }
+
+/* optimistic local snap burst (server still decides the race) */
+.snap-burst-local { color: var(--butter-deep); }
+
+/* ---------- mobile ---------- */
+@media (max-width: 700px) {
+  :root { --seat-top-min: 168px; }
+  .table-felt { width: 96vw; height: 58vh; top: 43%; }
+  .table-felt::before { --u: 12px; }
+  .piles { --pw: 46px; --ph: 64px; gap: 10px; top: 38%; }
+  .pcard-md { --w: 46px; }
+  .pcard-sm { --w: 36px; }
+  .pcard-xs { --w: 30px; }
+  .pcard-lg { --w: 58px; }
+  .hand-slot-md { --w: 46px; }
+  .hand-slot-sm { --w: 36px; }
+  .hand-slot-xs { --w: 30px; }
+  .hand-grid { gap: 4px; }
+  .hud-top { top: 8px; left: 8px; right: 8px; gap: 5px; }
+  .btn-small { padding: 0.3rem 0.55rem; font-size: 0.78rem; }
+  .btn-round { width: 2.1rem; height: 2.1rem; font-size: 0.9rem; }
+  .chip { padding: 3px 8px; font-size: 0.78rem; }
+  .chip-code { letter-spacing: 0.08em; }
+  .seat-plate { padding: 1px 7px 1px 3px; border-width: 2px; }
+  .seat-name { max-width: 9ch; font-size: 0.72rem; }
+  .stock-badge { font-size: 0.8rem; top: -8px; right: -8px; }
+  .pile-label { font-size: 0.6rem; bottom: -18px; }
+  .hint-bubble { font-size: 0.78rem; padding: 5px 10px; max-width: 94vw; }
+  .action-bar { bottom: 8px; gap: 6px; width: 100vw; }
+  .timer-bar { width: 110px; height: 8px; }
+  .cabo-banner { font-size: 0.78rem; top: 52px; padding: 4px 12px; }
+  .toast { max-width: 180px; font-size: 0.72rem; }
+  .toasts { top: 52px; right: 8px; }
+  .cabo-badge { font-size: 0.6rem; top: -12px; right: -14px; }
+  .panel { padding: 16px 14px; --cut: 6px; }
+  .snap-ring { inset: -5px; border-width: 3px; }
+  .deco.float-bob-smooth { display: none; } /* deco cards crowd small screens */
+}
+
+/* flight cards are measured against a fixed 60px frame — keep the inner card
+   full-size even on mobile so the landing scale math stays exact */
+.swap-flight-card .pcard-md { --w: 60px; }
+
+/* server rejected my snap */
+.snap-burst-miss { color: var(--pink-deep); text-shadow: 2px 2px 0 #fff; }
+
+/* crowded tables: 7+ players get extra-compact seats on phones */
+@media (max-width: 700px) {
+  [data-crowd] .seat .pcard-xs,
+  [data-crowd] .seat .hand-slot-xs { --w: 24px; }
+  [data-crowd] .seat .pcard-md,
+  [data-crowd] .seat .hand-slot-md { --w: 38px; }
+  [data-crowd] .hand-grid { gap: 2px; }
+  [data-crowd] .seat { gap: 2px; }
+  [data-crowd] .seat-plate { padding: 0 5px 0 2px; gap: 3px; border-width: 2px; }
+  [data-crowd] .seat-name { max-width: 6ch; font-size: 0.62rem; }
+  [data-crowd] .seat .avatar-wrap svg { width: 20px; height: 20px; }
+}
