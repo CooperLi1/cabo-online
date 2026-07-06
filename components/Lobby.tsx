@@ -145,7 +145,7 @@ export function Lobby({
           <div className="flex flex-col items-center gap-2">
             <div className="flex flex-wrap items-center justify-center gap-2">
               <span className="tagline text-sm">add a bot:</span>
-              {(['derp', 'easy', 'medium', 'hard', 'expert'] as const).map((lvl) => (
+              {(['derp', 'easy', 'medium', 'hard', 'expert', 'master'] as const).map((lvl) => (
                 <button
                   key={lvl}
                   className="btn btn-small"

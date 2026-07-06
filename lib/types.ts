@@ -12,7 +12,7 @@ export interface PlayerState {
   avatar: string;
   connected: boolean;
   isBot?: boolean;
-  botLevel?: 'derp' | 'easy' | 'medium' | 'hard' | 'expert' | null;
+  botLevel?: 'derp' | 'easy' | 'medium' | 'hard' | 'expert' | 'master' | null;
   cards: string[]; // card ids only — values stay secret on the server
   peeksLeft: number;
   isTurn: boolean;

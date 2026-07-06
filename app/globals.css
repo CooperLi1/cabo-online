@@ -383,7 +383,8 @@ h1, h2, h3, .font-round { font-family: var(--font-px); }
 .piles {
   position: absolute;
   left: 50%;
-  top: 37%;
+  /* never rise into the far seats on short windows */
+  top: max(37%, 252px);
   transform: translate(-50%, -50%);
   display: flex;
   gap: 30px;
@@ -834,7 +835,7 @@ h1, h2, h3, .font-round { font-family: var(--font-px); }
   :root { --seat-top-min: 168px; }
   .table-felt { width: 96vw; height: 58vh; top: 43%; }
   .table-felt::before { --u: 12px; }
-  .piles { --pw: 46px; --ph: 64px; gap: 10px; top: 38%; }
+  .piles { --pw: 46px; --ph: 64px; gap: 10px; top: max(38%, 262px); }
   .pcard-md { --w: 46px; }
   .pcard-sm { --w: 36px; }
   .pcard-xs { --w: 30px; }
