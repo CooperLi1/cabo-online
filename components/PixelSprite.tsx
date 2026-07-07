@@ -1,11 +1,14 @@
 'use client';
-import { memo } from 'react';
+/* eslint-disable @next/next/no-img-element -- sprites are inline SVG data URIs; there is nothing for next/image to fetch or optimize */
+import { memo, useMemo } from 'react';
 
-// Generic pixel-grid → crisp SVG renderer. 'X' = fill, '.' = transparent,
-// 'o' = secondary color (lighter shade).
+// Pixel-grid sprites rendered as single <img> elements with SVG data URIs.
+// Building each sprite from dozens of <rect> DOM nodes made a 12-player table
+// carry thousands of nodes; an <img> is one node and the browser caches the
+// decoded bitmap by URL. 'X' = fill, '.' = transparent, 'o' = secondary color.
 
-function gridRects(grid: string[], fill: string, fill2?: string) {
-  const rects: React.ReactNode[] = [];
+export function gridRectString(grid: string[], fill: string, fill2?: string): string {
+  let out = '';
   grid.forEach((row, y) => {
     let x = 0;
     while (x < row.length) {
@@ -13,14 +16,16 @@ function gridRects(grid: string[], fill: string, fill2?: string) {
       if (ch === '.') { x++; continue; }
       let x2 = x + 1;
       while (x2 < row.length && row[x2] === ch) x2++;
-      rects.push(
-        <rect key={`${y}-${x}`} x={x} y={y} width={x2 - x} height={1}
-          fill={ch === 'o' ? (fill2 ?? fill) : fill} />
-      );
+      out += `<rect x="${x}" y="${y}" width="${x2 - x}" height="1" fill="${ch === 'o' ? (fill2 ?? fill) : fill}"/>`;
       x = x2;
     }
   });
-  return rects;
+  return out;
+}
+
+export function svgSrc(w: number, h: number, rects: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" shape-rendering="crispEdges">${rects}</svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
 export const PixelSprite = memo(function PixelSprite({
@@ -35,11 +40,10 @@ export const PixelSprite = memo(function PixelSprite({
 }) {
   const w = grid[0].length;
   const h = grid.length;
+  const src = useMemo(() => svgSrc(w, h, gridRectString(grid, color, color2)), [grid, color, color2, w, h]);
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} width={size} height={(size / w) * h}
-      shapeRendering="crispEdges" className={className} style={style} aria-hidden>
-      {gridRects(grid, color, color2)}
-    </svg>
+    <img src={src} width={size} height={(size / w) * h} className={className} style={style}
+      alt="" draggable={false} aria-hidden />
   );
 });
 
@@ -189,28 +193,30 @@ export const PixelText = memo(function PixelText({
   className?: string;
   style?: React.CSSProperties;
 }) {
-  const chars = [...text];
-  const w = chars.length * 6 - 1;
-  const rects: React.ReactNode[] = [];
-  chars.forEach((ch, ci) => {
-    const g = GLYPHS[ch];
-    if (!g) return;
-    const ox = ci * 6;
-    g.forEach((row, y) => {
-      let x = 0;
-      while (x < 5) {
-        if (row[x] !== 'X') { x++; continue; }
-        let x2 = x + 1;
-        while (x2 < 5 && row[x2] === 'X') x2++;
-        rects.push(<rect key={`${ci}-${y}-${x}`} x={ox + x} y={y} width={x2 - x} height={1} fill={color} />);
-        x = x2;
-      }
+  const src = useMemo(() => {
+    const chars = [...text];
+    const w = chars.length * 6 - 1;
+    let rects = '';
+    chars.forEach((ch, ci) => {
+      const g = GLYPHS[ch];
+      if (!g) return;
+      const ox = ci * 6;
+      g.forEach((row, y) => {
+        let x = 0;
+        while (x < 5) {
+          if (row[x] !== 'X') { x++; continue; }
+          let x2 = x + 1;
+          while (x2 < 5 && row[x2] === 'X') x2++;
+          rects += `<rect x="${ox + x}" y="${y}" width="${x2 - x}" height="1" fill="${color}"/>`;
+          x = x2;
+        }
+      });
     });
-  });
+    return svgSrc(w, 7, rects);
+  }, [text, color]);
+  const w = [...text].length * 6 - 1;
   return (
-    <svg viewBox={`0 0 ${w} 7`} height={height} width={(height / 7) * w}
-      shapeRendering="crispEdges" className={className} style={style} aria-label={text}>
-      {rects}
-    </svg>
+    <img src={src} height={height} width={(height / 7) * w} className={className} style={style}
+      alt={text} draggable={false} />
   );
 });

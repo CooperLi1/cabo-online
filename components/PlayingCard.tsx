@@ -65,20 +65,15 @@ export const PlayingCard = memo(function PlayingCard({
         dimmed ? 'pcard-dimmed' : '',
         wobble ? 'pcard-wobble' : '',
         popKey ? `pcard-pop-${popKey % 2 ? 'a' : 'b'}` : '',
+        onClick || onSnapDown ? 'pcard-tap' : '',
       ].join(' ')}
       onClick={onClick}
       onPointerDown={onSnapDown ? (e) => { if (e.button === 0) onSnapDown(); } : undefined}
-      whileTap={onClick || onSnapDown ? { scale: 0.92 } : undefined}
       title={title}
       data-cardid={id}
     >
       <div className="pcard-pop-shell">
-        <motion.div
-          className="pcard-inner"
-          initial={false}
-          animate={{ rotateY: faceUp ? 0 : 180 }}
-          transition={{ duration: 0.4, ease: [0.4, 0.1, 0.2, 1] }}
-        >
+        <div className={`pcard-inner ${faceUp ? '' : 'pcard-facedown'}`}>
           <div className="pcard-face pcard-front" style={{ color }}>
             {card && (
               <>
@@ -106,7 +101,7 @@ export const PlayingCard = memo(function PlayingCard({
               </span>
             )}
           </div>
-        </motion.div>
+        </div>
       </div>
     </motion.div>
   );

@@ -1,5 +1,7 @@
 'use client';
-import { memo } from 'react';
+/* eslint-disable @next/next/no-img-element -- sprites are inline SVG data URIs; there is nothing for next/image to fetch or optimize */
+import { memo, useMemo } from 'react';
+import { svgSrc } from './PixelSprite';
 
 // 12x12 pixel critters. Legend: . transparent, B body, D accent, W white,
 // K dark, P blush, O orange.
@@ -208,46 +210,38 @@ export const PixelAvatar = memo(function PixelAvatar({
   className?: string;
 }) {
   const char = CHARACTERS[id] ?? CHARACTERS.cat;
-  const pal: Record<string, string> = { ...DEFAULTS, ...char.palette };
-  const rects: React.ReactNode[] = [];
-  const filled = new Set<string>();
-  char.grid.forEach((row, y) => {
-    for (let x = 0; x < row.length; x++) if (row[x] !== '.') filled.add(`${x},${y}`);
-  });
-  // 1px pixel outline around the character so it never blends into a background
-  const outline: React.ReactNode[] = [];
-  for (let y = -1; y <= 12; y++) {
-    for (let x = -1; x <= 12; x++) {
-      if (filled.has(`${x},${y}`)) continue;
-      if (filled.has(`${x + 1},${y}`) || filled.has(`${x - 1},${y}`) ||
-          filled.has(`${x},${y + 1}`) || filled.has(`${x},${y - 1}`)) {
-        outline.push(<rect key={`o${x},${y}`} x={x} y={y} width={1} height={1} fill={OUTLINE} />);
+  const src = useMemo(() => {
+    const pal: Record<string, string> = { ...DEFAULTS, ...char.palette };
+    const filled = new Set<string>();
+    char.grid.forEach((row, y) => {
+      for (let x = 0; x < row.length; x++) if (row[x] !== '.') filled.add(`${x},${y}`);
+    });
+    let rects = '';
+    // 1px pixel outline so the character never blends into a background
+    for (let y = -1; y <= 12; y++) {
+      for (let x = -1; x <= 12; x++) {
+        if (filled.has(`${x},${y}`)) continue;
+        if (filled.has(`${x + 1},${y}`) || filled.has(`${x - 1},${y}`) ||
+            filled.has(`${x},${y + 1}`) || filled.has(`${x},${y - 1}`)) {
+          rects += `<rect x="${x + 1}" y="${y + 1}" width="1" height="1" fill="${OUTLINE}"/>`;
+        }
       }
     }
-  }
-  char.grid.forEach((row, y) => {
-    // merge horizontal runs of the same color into single rects
-    let x = 0;
-    while (x < row.length) {
-      const ch = row[x];
-      if (ch === '.') { x++; continue; }
-      let x2 = x + 1;
-      while (x2 < row.length && row[x2] === ch) x2++;
-      rects.push(<rect key={`${y}-${x}`} x={x} y={y} width={x2 - x} height={1} fill={pal[ch] ?? pal.B} />);
-      x = x2;
-    }
-  });
+    char.grid.forEach((row, y) => {
+      let x = 0;
+      while (x < row.length) {
+        const ch = row[x];
+        if (ch === '.') { x++; continue; }
+        let x2 = x + 1;
+        while (x2 < row.length && row[x2] === ch) x2++;
+        rects += `<rect x="${x + 1}" y="${y + 1}" width="${x2 - x}" height="1" fill="${pal[ch] ?? pal.B}"/>`;
+        x = x2;
+      }
+    });
+    return svgSrc(14, 14, rects);
+  }, [char]);
   return (
-    <svg
-      viewBox="-1 -1 14 14"
-      width={size}
-      height={size}
-      className={className}
-      shapeRendering="crispEdges"
-      aria-label={char.name}
-    >
-      {outline}
-      {rects}
-    </svg>
+    <img src={src} width={size} height={size} className={className}
+      alt={char.name} title={char.name} draggable={false} />
   );
 });

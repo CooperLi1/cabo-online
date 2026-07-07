@@ -197,14 +197,19 @@ export default function Page() {
       pendingState = st;
       if (flushScheduled) return;
       flushScheduled = true;
-      requestAnimationFrame(() => {
+      // rAF batches bursts to one render per frame; the timeout backstop keeps
+      // state flowing when the tab is hidden/throttled and rAF never fires
+      const flush = () => {
+        if (!flushScheduled) return;
         flushScheduled = false;
         if (pendingState) {
           const next = pendingState;
           pendingState = null;
           applyState(next);
         }
-      });
+      };
+      requestAnimationFrame(flush);
+      setTimeout(flush, 60);
     };
     const onPrivate = (msg: PrivateMsg) => {
       if (!activeRoomRef.current) return;

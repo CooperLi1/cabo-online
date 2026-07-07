@@ -96,6 +96,9 @@ export function startMusic() {
   step = 0;
   schedulerTimer = setInterval(() => {
     if (!ctx) return;
+    // if the tab was throttled/hidden, skip the missed steps instead of
+    // burst-playing them all at once on return
+    if (nextStepTime < ctx.currentTime - 0.3) nextStepTime = ctx.currentTime + 0.05;
     while (nextStepTime < ctx.currentTime + 0.18) {
       scheduleStep(step, nextStepTime);
       step++;
