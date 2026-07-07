@@ -90,6 +90,23 @@ see a `socket.io` websocket with status 101 pointed at your game server. If
 "new game" shows *"can't reach the game server"*, the socket URL is wrong or
 the server isn't up.
 
+## Analytics
+
+Render's own **Metrics** tab covers infrastructure (CPU/RAM/bandwidth). For
+usage analytics:
+
+- **Page views:** sign up at [goatcounter.com](https://www.goatcounter.com)
+  (free, no cookies), then set
+  `NEXT_PUBLIC_GOATCOUNTER=https://YOURCODE.goatcounter.com/count` on the
+  service and redeploy. The tracking script is only injected when the
+  variable is set. (Any script-based tool — Plausible, Umami, PostHog —
+  can be added the same way in `app/layout.tsx`.)
+- **Game stats:** the server logs one line per game to stdout:
+  `[stats] game_start code=… players=… bots=…` and
+  `[stats] game_over … durationS=… winner=…`.
+  In Render, filter the **Logs** tab for `[stats]` (or point a Render Log
+  Stream at a drain to aggregate long-term).
+
 ## House rules implemented
 
 - Deck is a standard **54-card** deck: 52 suited cards plus 2 jokers

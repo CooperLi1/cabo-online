@@ -417,8 +417,8 @@ export const GameTable = memo(function GameTable({
     // clamp seats so the top plate and the bottom hand always stay on screen
     const pct = 46 + 34 * sin;
     const top = sin > 0.9
-      ? `min(${pct}%, calc(100% - 245px))` // my seat: clear of the action bar
-      : `clamp(var(--seat-top-min, 128px), ${pct}%, calc(100% - 245px))`;
+      ? `min(${pct}%, calc(100% - var(--seat-bottom-gap, 245px)))` // my seat: clear of the action bar
+      : `clamp(var(--seat-top-min, 128px), ${pct}%, calc(100% - var(--seat-bottom-gap, 245px)))`;
     const x = 50 + 41 * Math.cos(a);
     return { left: `clamp(62px, ${x}%, calc(100% - 62px))`, top, topHalf: sin < 0.25 };
   };
