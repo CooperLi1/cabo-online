@@ -21,6 +21,15 @@ export const metadata: Metadata = {
   metadataBase,
   title: "cabo! | pastel pixel card game",
   description: "A cute pixel-art multiplayer card game. Share a code, peek fast, snap faster, call cabo.",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    apple: "/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    title: "cabo",
+    statusBarStyle: "default",
+  },
   openGraph: {
     title: "cabo! | pastel pixel card game",
     description: "Share a code, peek fast, snap faster, call cabo.",

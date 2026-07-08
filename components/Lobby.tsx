@@ -61,15 +61,25 @@ export function Lobby({
       <div style={{ position: 'fixed', top: 12, right: 14, zIndex: 30 }}><AudioControl /></div>
 
       <motion.div initial={{ y: -18, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="text-center">
-        <p className="tagline mb-2">share this code with your friends</p>
-        <button
-          className="chip chip-code text-4xl px-8 py-3 font-bold"
-          onClick={copy}
-          title="click to copy invite link"
-        >
-          {state.code}
-        </button>
-        <div className="tagline mt-2 text-sm h-5">{copied ? '✦ invite link copied!' : 'tap to copy the invite link'}</div>
+        {state.code === 'SOLO' ? (
+          <>
+            <p className="tagline mb-2">practice mode 🤖</p>
+            <div className="chip chip-code text-2xl px-8 py-3 font-bold">no internet needed</div>
+            <div className="tagline mt-2 text-sm h-5">add some bots and deal!</div>
+          </>
+        ) : (
+          <>
+            <p className="tagline mb-2">share this code with your friends</p>
+            <button
+              className="chip chip-code text-4xl px-8 py-3 font-bold"
+              onClick={copy}
+              title="click to copy invite link"
+            >
+              {state.code}
+            </button>
+            <div className="tagline mt-2 text-sm h-5">{copied ? '✦ invite link copied!' : 'tap to copy the invite link'}</div>
+          </>
+        )}
       </motion.div>
 
       <div className="flex flex-wrap gap-3 justify-center max-w-xl">

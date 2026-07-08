@@ -24,9 +24,11 @@ export function PixelClouds() {
 export function Home({
   onJoined,
   onTutorial,
+  onPractice,
 }: {
   onJoined: (res: { pid: string; token: string; code: string }) => void;
   onTutorial: () => void;
+  onPractice: (name: string, avatar: string) => void;
 }) {
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState('cat');
@@ -151,9 +153,23 @@ export function Home({
 
         {error && <div className="text-[var(--pink-deep)] font-bold">{error}</div>}
 
-        <button className="btn btn-small btn-lav mt-1" onClick={onTutorial}>
-          ✦ learn to play
-        </button>
+        <div className="flex gap-2 mt-1">
+          <button className="btn btn-small btn-lav" onClick={onTutorial}>
+            ✦ learn to play
+          </button>
+          <button
+            className="btn btn-small"
+            title="play against bots — works without internet"
+            onClick={() => {
+              if (!name.trim()) return setError('pick a name first!');
+              persist();
+              sfx.click();
+              onPractice(name.trim(), avatar);
+            }}
+          >
+            🤖 practice offline
+          </button>
+        </div>
       </motion.div>
       </div>
     </div>

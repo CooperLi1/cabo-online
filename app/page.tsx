@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CardInfo, GameState, Fx, PrivateMsg } from '@/lib/types';
-import { getSocket } from '@/lib/socket';
+import { getSocket, setLocalMode, isLocalMode } from '@/lib/socket';
 import { sfx } from '@/lib/sounds';
 import { startMusic } from '@/lib/music';
 import { Home } from '@/components/Home';
@@ -17,6 +17,30 @@ export interface Toast { id: number; text: string }
 let toastSeq = 1;
 
 export default function Page() {
+  const [practice, setPractice] = useState<{ name: string; avatar: string } | null>(null);
+
+  // service worker: lets the installed app load without internet (prod only)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+  }, []);
+
+  return (
+    <CaboApp
+      key={practice ? 'local' : 'online'}
+      practice={practice}
+      onEnterPractice={(name, avatar) => { setLocalMode(true); setPractice({ name, avatar }); }}
+      onExitPractice={() => { setLocalMode(false); setPractice(null); }}
+    />
+  );
+}
+
+function CaboApp({ practice, onEnterPractice, onExitPractice }: {
+  practice: { name: string; avatar: string } | null;
+  onEnterPractice: (name: string, avatar: string) => void;
+  onExitPractice: () => void;
+}) {
   const [state, setState] = useState<GameState | null>(null);
   const [me, setMe] = useState<Me | null>(null);
   const [known, setKnown] = useState<Record<string, Known>>({});
@@ -259,8 +283,19 @@ export default function Page() {
   const joined = useCallback((res: { pid: string; token: string; code: string }) => {
     activeRoomRef.current = res.code;
     setMe(res);
-    localStorage.setItem('cabo-session', JSON.stringify({ code: res.code, token: res.token }));
+    if (res.code !== 'SOLO') {
+      localStorage.setItem('cabo-session', JSON.stringify({ code: res.code, token: res.token }));
+    }
   }, []);
+
+  // practice mode: spin up the in-browser room as soon as we arrive
+  useEffect(() => {
+    if (!practice || meRef.current) return;
+    getSocket().emit('create', { name: practice.name, avatar: practice.avatar },
+      (res: { ok?: boolean; pid?: string; token?: string; code?: string }) => {
+        if (res.ok) joined({ pid: res.pid!, token: res.token!, code: res.code! });
+      });
+  }, [practice, joined]);
 
   const leave = useCallback(() => {
     activeRoomRef.current = null;
@@ -277,14 +312,15 @@ export default function Page() {
     setToasts([]);
     prevPhase.current = null;
     lastFxSeq.current = 0;
-  }, []);
+    if (isLocalMode()) onExitPractice();
+  }, [onExitPractice]);
 
   const inRoom = me && state && state.players.some((p) => p.pid === me.pid);
 
   return (
     <>
       <div className="bg-blobs" />
-      {!inRoom && <Home onJoined={joined} onTutorial={() => setShowTutorial(true)} />}
+      {!inRoom && <Home onJoined={joined} onTutorial={() => setShowTutorial(true)} onPractice={onEnterPractice} />}
       {inRoom && state!.phase === 'lobby' && (
         <Lobby state={state!} me={me!} onLeave={leave} onTutorial={() => setShowTutorial(true)} />
       )}

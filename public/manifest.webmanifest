@@ -1,0 +1,15 @@
+{
+  "name": "cabo!",
+  "short_name": "cabo",
+  "description": "A cute pixel-art card game of tiny numbers, sneaky peeks and lightning snaps.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fdf3ec",
+  "theme_color": "#fdf3ec",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

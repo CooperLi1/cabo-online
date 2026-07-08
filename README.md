@@ -90,6 +90,25 @@ see a `socket.io` websocket with status 101 pointed at your game server. If
 "new game" shows *"can't reach the game server"*, the socket URL is wrong or
 the server isn't up.
 
+## Phone app (PWA)
+
+The game is an installable Progressive Web App:
+
+- **iPhone:** open the site in Safari → Share → **Add to Home Screen**.
+- **Android:** open it in Chrome → ⋮ menu → **Add to Home screen** (or tap the
+  install prompt).
+
+The installed app runs fullscreen with the pixel-cat icon. A service worker
+caches the app shell, so once installed it **opens without internet**, and the
+**🤖 practice offline** button on the home screen runs the entire game engine
+(bots included) inside the phone — no server, no wifi. Online multiplayer
+works whenever there's a connection, exactly like the website.
+
+Want a real App Store / Play Store listing later? Wrap this same app with
+[Capacitor](https://capacitorjs.com) — the code needs no changes; point the
+shell at your deployed URL (or bundle the static export with
+`NEXT_PUBLIC_SOCKET_URL` set for multiplayer).
+
 ## Analytics
 
 Render's own **Metrics** tab covers infrastructure (CPU/RAM/bandwidth). For
