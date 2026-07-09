@@ -443,7 +443,7 @@ const STEPS = [
   },
   {
     title: 'SNAP! ⚡',
-    caption: 'if a card matches the TOP of the discard pile, tap it to snap — anyone\'s cards, anytime, fastest tap wins! snap someone else\'s card and you hand them one of yours. wrong card OR too slow = penalty card.',
+    caption: 'if a card matches the TOP of the discard pile, tap it to snap — anyone\'s cards, anytime, fastest tap wins! snap someone else\'s card and you hand them one of yours. wrong card or too late = penalty card — but you can keep trying until someone gets it!',
     scene: SnapScene,
   },
   {

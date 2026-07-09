@@ -53,13 +53,17 @@ export function Home({
   // fail loudly instead of hanging on a disabled button
   const attempt = (event: string, payload: Record<string, string | number>) => {
     persist();
+    if (!navigator.onLine) {
+      setError('no internet connection 😢 — connect to wifi to play with friends, or tap 🤖 practice offline!');
+      return;
+    }
     setBusy(true);
     let done = false;
     const timeout = setTimeout(() => {
       if (done) return;
       done = true;
       setBusy(false);
-      setError("can't reach the game server 😢 (it needs a Node host, not serverless)");
+      setError("couldn't connect 😢 — check your internet and try again, or tap 🤖 practice offline!");
     }, 6000);
     getSocket().emit(event, payload, (res: { ok?: boolean; error?: string; pid?: string; token?: string; code?: string }) => {
       if (done) return;

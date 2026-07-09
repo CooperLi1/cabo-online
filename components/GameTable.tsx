@@ -136,6 +136,8 @@ export const GameTable = memo(function GameTable({
         }
         if (fx.type === 'snap-miss' && fx.pid === me.pid) {
           setLocalSnap(0);
+          // match the server's retry cooldown — you may snap again after this
+          snapCooldownUntil.current = performance.now() + 500;
           setMissBurst(Date.now());
           setTimeout(() => setMissBurst(0), 750);
         }
@@ -612,8 +614,10 @@ export const GameTable = memo(function GameTable({
                     const face = faceOf(cid);
                     const target = isTarget(cid, p.pid);
                     const caboProtected = !!state.caboPid && p.pid === state.caboPid && p.pid !== me.pid;
-                    const ownPowerPeek = isMe && !!known[cid] && known[cid].until !== null;
-                    const clickable = target || (snapPossible && !caboProtected && (!face || ownPowerPeek));
+                    // temporarily-revealed cards (your 7/8/9/10/Q peeks, public
+                    // missnap flips) are fair game to snap while they show
+                    const tempReveal = !!known[cid] && known[cid].until !== null;
+                    const clickable = target || (snapPossible && !caboProtected && (!face || tempReveal));
                     return (
                       <div key={cid} style={{ position: 'relative' }}>
                         <PlayingCard
@@ -785,7 +789,7 @@ export function ValuesPanel({ onClose }: { onClose: () => void }) {
           <div className="result-row">🤝 tied? the caller loses the tie — then more cards wins — then it&apos;s a true tie</div>
           <div className="result-row">⚡ snap away ALL your cards → instant win</div>
           <div className="result-row">💥 kamikaze: exactly 2 black kings + 2 face cards → instant win</div>
-          <div className="result-row">🐌 one snap per discard — wrong card or too late → penalty card</div>
+          <div className="result-row">🐌 wrong snap → penalty card, but you can try again — once someone gets it, the pile locks</div>
         </div>
       </div>
     </div>
