@@ -60,6 +60,7 @@ function noise(dur = 0.08, vol = 0.06, when = 0) {
 export const sfx = {
   click: () => tone(660, 0.06, 'sine', 0.1),
   pop: () => { tone(720, 0.055, 'triangle', 0.08); tone(1060, 0.08, 'sine', 0.06, 0.035); },
+  social: () => { tone(620, 0.07, 'triangle', 0.055); tone(820, 0.09, 'sine', 0.045, 0.045); },
   deal: () => { for (let i = 0; i < 4; i++) noise(0.06, 0.05, i * 0.09); },
   flip: () => { noise(0.05, 0.05); tone(880, 0.07, 'sine', 0.06); },
   draw: () => { noise(0.06, 0.05); tone(520, 0.09, 'triangle', 0.1, 0, 700); },

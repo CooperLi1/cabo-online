@@ -1,4 +1,6 @@
 'use client';
+import { normalizeSocialPayload } from './social.js';
+
 // Offline practice mode: runs the SAME game engine that the server uses, but
 // inside the browser, wired to a socket.io-shaped shim. No network involved —
 // the whole game (bots included) lives in this tab.
@@ -39,6 +41,8 @@ export class LocalGameSocket {
   private listeners = new Map<string, Set<Listener>>();
   private room: LocalRoom | null = null;
   private player: any = null;
+  private lastSocialAt = 0;
+  private socialSeq = 0;
 
   on(event: string, fn: Listener) {
     if (!this.listeners.has(event)) this.listeners.set(event, new Set());
@@ -102,6 +106,20 @@ export class LocalGameSocket {
       case 'snap':
         if (data?.cardId) room.snap(p, data.cardId, 0, typeof data.reaction === 'number' ? data.reaction : null);
         break;
+      case 'social': {
+        const payload = normalizeSocialPayload(data);
+        const now = Date.now();
+        if (!payload || now - this.lastSocialAt < 900) break;
+        this.lastSocialAt = now;
+        this.dispatch('social', {
+          id: `local-${++this.socialSeq}`,
+          code: 'SOLO',
+          pid: p.pid,
+          kind: payload.kind,
+          value: payload.value,
+        });
+        break;
+      }
     }
     return this;
   }

@@ -6,6 +6,7 @@ const { createServer } = require('http');
 const next = require('next');
 const { Server } = require('socket.io');
 const { createRoom, getRoom } = require('./lib/game');
+const { normalizeSocialPayload } = require('./lib/social');
 
 const dev = process.env.NODE_ENV !== 'production';
 const port = parseInt(process.env.PORT || '3000', 10);
@@ -27,9 +28,11 @@ app.prepare().then(() => {
       if (player.socketId) io.to(player.socketId).emit(event, payload);
     },
   });
+  let socialSeq = 0;
 
   io.on('connection', (socket) => {
     socket.data.rtt = 100;
+    socket.data.lastSocialAt = 0;
 
     const ctx = () => {
       const room = socket.data.code ? getRoom(socket.data.code) : null;
@@ -120,6 +123,21 @@ app.prepare().then(() => {
         room.snap(player, data.cardId, socket.data.rtt,
           typeof data.reaction === 'number' ? data.reaction : null);
       }
+    });
+
+    socket.on('social', (data) => {
+      const { room, player } = ctx();
+      const payload = normalizeSocialPayload(data);
+      const now = Date.now();
+      if (!room || !player || !payload || now - socket.data.lastSocialAt < 900) return;
+      socket.data.lastSocialAt = now;
+      io.to(room.code).emit('social', {
+        id: String(++socialSeq),
+        code: room.code,
+        pid: player.pid,
+        kind: payload.kind,
+        value: payload.value,
+      });
     });
 
     socket.on('disconnect', () => {

@@ -87,6 +87,14 @@ export interface PrivateMsg {
   ownerPid?: string;
 }
 
+export interface SocialMessage {
+  id: string;
+  code: string;
+  pid: string;
+  kind: 'reaction' | 'chat';
+  value: string;
+}
+
 export function isRed(c: { s: string }): boolean {
   return c.s === '♥' || c.s === '♦';
 }

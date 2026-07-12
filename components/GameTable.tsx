@@ -9,6 +9,7 @@ import { PixelAvatar } from './PixelAvatar';
 import { PlayingCard, type CardSize } from './PlayingCard';
 import { PixelSprite, EYE } from './PixelSprite';
 import { AudioControl } from './AudioControl';
+import { GameSocialControl, GameSocialRibbon, PlayerSocialBubble, useGameSocial } from './GameSocial';
 
 const FLIGHT_CARD_W = 60;
 const FLIGHT_CARD_H = 84;
@@ -75,6 +76,7 @@ export const GameTable = memo(function GameTable({
   const [blindSel, setBlindSel] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [showValues, setShowValues] = useState(false);
+  const [socialOpen, setSocialOpen] = useState(false);
   const [snapRingKey, setSnapRingKey] = useState(0);
   const [burst, setBurst] = useState(0);
   const [localSnap, setLocalSnap] = useState(0); // optimistic burst on MY tap, before the server rules
@@ -93,6 +95,7 @@ export const GameTable = memo(function GameTable({
   const lastSlotFxSeq = useRef(0);
   const handSlotsHydrated = useRef(false);
   const pendingSlotSwaps = useRef<Map<string, { pid: string; outId: string; inId: string }>>(new Map());
+  const socialMessages = useGameSocial(state.code);
 
   // reset blind-swap selection whenever the power context changes
   useEffect(() => { setBlindSel([]); }, [state.stage, state.powerKind, state.turnPid]);
@@ -422,7 +425,8 @@ export const GameTable = memo(function GameTable({
       ? `min(${pct}%, calc(100% - var(--seat-bottom-gap, 245px)))` // my seat: clear of the action bar
       : `clamp(var(--seat-top-min, 128px), ${pct}%, calc(100% - var(--seat-bottom-gap, 245px)))`;
     const x = 50 + 41 * Math.cos(a);
-    return { left: `clamp(62px, ${x}%, calc(100% - 62px))`, top, topHalf: sin < 0.25 };
+    const socialAlign: 'left' | 'center' | 'right' = x < 25 ? 'left' : x > 75 ? 'right' : 'center';
+    return { left: `clamp(62px, ${x}%, calc(100% - 62px))`, top, topHalf: sin < 0.25, socialAlign };
   };
 
   const otherSize: CardSize = n <= 4 ? 'sm' : 'xs';
@@ -481,6 +485,7 @@ export const GameTable = memo(function GameTable({
             {copied ? 'copied!' : state.code}
           </button>
           <div className="flex-1" />
+          <GameSocialControl open={socialOpen} onOpenChange={setSocialOpen} />
           <button className="btn btn-small" onClick={() => setShowValues(true)} title="card values">values</button>
           <AudioControl />
           <button className="btn btn-small btn-round" onClick={onTutorial} title="how to play">?</button>
@@ -584,6 +589,11 @@ export const GameTable = memo(function GameTable({
           const cols = Math.max(2, Math.ceil(Math.max(slots.length, p.cards.length) / 2));
           const plate = (
             <div style={{ position: 'relative' }}>
+              <PlayerSocialBubble
+                message={socialMessages[p.pid]}
+                side={pos.topHalf ? 'above' : 'below'}
+                align={pos.socialAlign}
+              />
               {p.pid === state.caboPid && <span className="cabo-badge">CABO!</span>}
               <div className="seat-plate">
                 <span className="avatar-wrap"><PixelAvatar id={p.avatar} size={isMe ? 34 : 28} /></span>
@@ -596,7 +606,7 @@ export const GameTable = memo(function GameTable({
           return (
             <div
               key={p.pid}
-              className={`seat ${p.isTurn ? 'seat-turn' : ''} ${!p.connected ? 'seat-offline' : ''}`}
+              className={`seat ${p.isTurn ? 'seat-turn' : ''} ${!p.connected ? 'seat-offline' : ''} ${socialMessages[p.pid] ? 'seat-social-active' : ''}`}
               style={{ left: pos.left, top: pos.top }}
             >
               {pos.topHalf && plate}
@@ -657,22 +667,27 @@ export const GameTable = memo(function GameTable({
         {/* action bar */}
         <div className="action-bar">
           {state.phase !== 'gameOver' && <TurnTimerBar deadline={state.deadline} />}
-          {hint && <div className="hint-bubble">{hint}</div>}
-          <div className="flex gap-2">
-            {myTurn && state.stage === 'draw' && !state.caboPid && !state.pendingGive && (
-              <button className="btn btn-primary" onClick={() => s.emit('callCabo')}>
-                📣 call CABO!
-              </button>
-            )}
-            {myTurn && state.stage === 'decide' && state.drawn?.from === 'stock' && (
-              <button className="btn btn-mint btn-small" onClick={() => s.emit('discardDrawn')}>toss it ➜ discard</button>
-            )}
-            {myTurn && state.stage === 'power' && (
-              <button className="btn btn-small" onClick={() => s.emit('skipPower')}>
-                {state.powerKind === 'peek-swap' && state.qPeeked ? 'keep mine' : 'skip power'}
-              </button>
-            )}
-          </div>
+          <GameSocialRibbon open={socialOpen} onOpenChange={setSocialOpen} />
+          {!socialOpen && (
+            <>
+              {hint && <div className="hint-bubble">{hint}</div>}
+              <div className="flex gap-2">
+                {myTurn && state.stage === 'draw' && !state.caboPid && !state.pendingGive && (
+                  <button className="btn btn-primary" onClick={() => s.emit('callCabo')}>
+                    📣 call CABO!
+                  </button>
+                )}
+                {myTurn && state.stage === 'decide' && state.drawn?.from === 'stock' && (
+                  <button className="btn btn-mint btn-small" onClick={() => s.emit('discardDrawn')}>toss it ➜ discard</button>
+                )}
+                {myTurn && state.stage === 'power' && (
+                  <button className="btn btn-small" onClick={() => s.emit('skipPower')}>
+                    {state.powerKind === 'peek-swap' && state.qPeeked ? 'keep mine' : 'skip power'}
+                  </button>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         {/* game over */}

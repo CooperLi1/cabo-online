@@ -350,6 +350,7 @@ h1, h2, h3, .font-round { font-family: var(--font-px); }
   50% { border-color: var(--butter-deep); background: var(--butter); }
 }
 .seat-offline { opacity: 0.5; filter: grayscale(0.6); }
+.seat-social-active { z-index: 70; }
 
 .hand-grid {
   display: grid;
@@ -479,6 +480,125 @@ h1, h2, h3, .font-round { font-family: var(--font-px); }
 }
 .chip-code { cursor: pointer; letter-spacing: 0.14em; }
 .chip-code:hover { background: var(--butter); }
+
+.social-trigger { background: var(--mint); }
+.social-trigger-open { background: var(--pink); }
+.social-ribbon-shell {
+  display: flex;
+  align-items: center;
+  width: min(920px, calc(100vw - 20px));
+  min-width: 0;
+}
+.social-ribbon {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  flex: 1;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  padding: 2px 1px 5px;
+}
+.social-ribbon::-webkit-scrollbar { display: none; }
+.social-ribbon-divider {
+  width: 2px;
+  height: 27px;
+  flex: none;
+  background: var(--ink-soft);
+  opacity: 0.45;
+  margin: 0 2px;
+}
+.social-reaction,
+.social-phrase {
+  flex: none;
+  height: 34px;
+  border: 2px solid var(--ink);
+  background: var(--white);
+  color: var(--ink);
+  filter: drop-shadow(0 2px 0 var(--shadow-ink));
+  cursor: pointer;
+}
+.social-reaction:hover,
+.social-phrase:hover { background: var(--pink); transform: translateY(-1px); }
+.social-reaction:active,
+.social-phrase:active { transform: translateY(2px); filter: none; }
+.social-reaction:focus-visible,
+.social-phrase:focus-visible { outline: 3px solid var(--butter-deep); outline-offset: 2px; }
+.social-reaction {
+  width: 38px;
+  padding: 0;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+.social-phrase {
+  padding: 0 9px;
+  font-family: var(--font-px);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.social-bubble {
+  position: absolute;
+  z-index: 71;
+  width: max-content;
+  max-width: min(148px, calc(100vw - 20px));
+  padding: 5px 9px;
+  background: var(--white);
+  border: 2px solid var(--ink);
+  filter: drop-shadow(0 3px 0 var(--shadow-ink));
+  color: var(--ink);
+  font-family: var(--font-px);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.social-bubble-above { bottom: calc(100% + 8px); }
+.social-bubble-below { top: calc(100% + 8px); }
+.social-bubble-center { left: 50%; translate: -50% 0; }
+.social-bubble-left { left: 0; }
+.social-bubble-right { right: 0; }
+.social-bubble-chat.social-bubble-center,
+.social-bubble-chat.social-bubble-left {
+  left: calc(100% - 8px);
+  right: auto;
+  translate: 0 0;
+}
+.social-bubble-chat.social-bubble-right {
+  left: auto;
+  right: calc(100% - 8px);
+  translate: 0 0;
+}
+.social-bubble-chat {
+  top: auto;
+  bottom: calc(100% - 4px);
+}
+.social-bubble-chat::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--white);
+  transform: rotate(45deg);
+  bottom: -6px;
+  left: 7px;
+  border-right: 2px solid var(--ink);
+  border-bottom: 2px solid var(--ink);
+}
+.social-bubble-chat.social-bubble-right::after {
+  left: auto;
+  right: 7px;
+}
+.social-bubble-reaction {
+  min-width: 42px;
+  padding: 4px 7px;
+  font-family: sans-serif;
+  font-size: 1.4rem;
+  line-height: 1;
+}
 
 .action-bar {
   position: fixed;
@@ -851,6 +971,12 @@ h1, h2, h3, .font-round { font-family: var(--font-px); }
   .hand-slot-xs { --w: 30px; }
   .hand-grid { gap: 4px; }
   .hud-top { top: 8px; left: 8px; right: 8px; gap: 5px; }
+  .social-ribbon { gap: 4px; }
+  .social-reaction { width: 33px; height: 31px; font-size: 1rem; }
+  .social-phrase { height: 31px; padding: 0 7px; font-size: 0.64rem; }
+  .social-ribbon-divider { height: 24px; }
+  .social-bubble { max-width: 128px; padding: 4px 7px; font-size: 0.68rem; }
+  .social-bubble-reaction { min-width: 36px; font-size: 1.2rem; }
   .btn-small { padding: 0.3rem 0.55rem; font-size: 0.78rem; }
   .btn-round { width: 2.1rem; height: 2.1rem; font-size: 0.9rem; }
   .chip { padding: 3px 8px; font-size: 0.78rem; }
